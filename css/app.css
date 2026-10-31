@@ -406,6 +406,32 @@ dialog::backdrop { background: rgba(37, 42, 38, .35); }
 .icon-btn[aria-pressed="true"] .ic { fill: #E0B040; stroke: #C08A1E; }
 .ic.fav { fill: #E0B040; stroke: #C08A1E; }
 
+/* fluxos */
+.ic.rot90 { transform: rotate(90deg); }
+.run { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.run + .run { margin-top: 10px; }
+.run.closed { opacity: .75; }
+.run-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.run-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.run-step { border-left: 3px solid var(--line-2); padding: 6px 0 6px 10px; display: flex; flex-direction: column; gap: 4px; }
+.run-step.st-done { border-left-color: var(--good); }
+.run-step.st-skipped { border-left-color: var(--line); opacity: .7; }
+.run-step-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.step-n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--fg-2); flex: none; }
+.st-done .step-n { background: var(--good-soft); color: var(--good); }
+.run-note { font-size: 13px; min-height: 30px; }
+.wf-editor { display: flex; flex-direction: column; gap: 12px; }
+.wf-title { margin-top: 6px; }
+.wf-steps { display: flex; flex-direction: column; gap: 10px; }
+.wf-step { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+.wf-step > header { display: flex; align-items: center; gap: 6px; }
+.wf-step [name=st-title] { font-weight: 600; }
+.wf-grid { display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: center; }
+.wf-grid input[type=number] { width: 80px; }
+.wf-items { display: flex; flex-direction: column; gap: 6px; }
+.wf-item { display: flex; gap: 8px; align-items: center; }
+.wf-item [name=it-text] { flex: 1; }
+
 /* escrita rápida */
 .quick { position: relative; display: flex; align-items: center; }
 .quick input { flex: 1; padding: 13px 16px 13px 44px; border-radius: 999px; font-size: 15px; background: var(--glass); border: 1px solid var(--line-2); }

@@ -209,3 +209,35 @@ test('prática: tempo, média das notas e evolução só com dados suficientes',
   const evo = M.scoreEvolution([ev('2026-10-05T12:00', 2), ev('2026-10-20T12:00', 4), ev('2026-11-03T12:00', 5)]);
   assert.deepStrictEqual(evo.map(e => [e.month, e.avg, e.count]), [['2026-10', 3, 2], ['2026-11', 5, 1]]);
 });
+
+test('fluxos: execução é cópia independente do modelo e acompanha o progresso', () => {
+  let n = 0; const id = () => 'id' + (++n);
+  const tpl = { id: 'tpl', version: 3, name: 'Impressão', steps: [
+    { id: 'a', title: 'Briefing', items: [{ text: 'Ler briefing', required: true }, { text: 'Anotar dúvidas', required: false }] },
+    { id: 'b', title: 'Sangria', dependsOn: 'a', items: [{ text: 'Conferir sangria pedida pela gráfica', required: true }] },
+    { id: 'c', title: 'Mockup', optional: true, items: [] },
+  ] };
+  const run = M.instantiateRun(tpl, 'p1', 1000, id);
+  assert.strictEqual(run.templateVersion, 3);
+  assert.strictEqual(run.steps[1].dependsOn, run.steps[0].id);            // dependência aponta para a cópia
+  tpl.steps[0].title = 'MUDOU'; tpl.steps[0].items.push({ text: 'novo' }); // editar o modelo depois...
+  assert.strictEqual(run.steps[0].title, 'Briefing');                     // ...não muda a execução
+  assert.strictEqual(run.steps[0].items.length, 2);
+  let r = M.toggleRunItem(run, run.steps[0].id, run.steps[0].items[0].id);
+  assert.strictEqual(r.steps[0].state, 'pending');                        // falta um item
+  r = M.toggleRunItem(r, r.steps[0].id, r.steps[0].items[1].id);
+  assert.strictEqual(r.steps[0].state, 'done');                           // todos feitos: etapa fecha
+  r = M.toggleRunItem(r, r.steps[0].id, r.steps[0].items[1].id);
+  assert.strictEqual(r.steps[0].state, 'pending');                        // desmarcou: reabre
+  r = M.setStepState(r, r.steps[2].id, 'skipped');
+  const pr = M.runProgress(r);
+  assert.strictEqual(pr.closed, 1);
+  assert.deepStrictEqual(pr.requiredPending.map(x => x.item), ['Conferir sangria pedida pela gráfica']);
+  assert.deepStrictEqual(pr.stepsPending, ['Briefing', 'Sangria']);
+  assert.strictEqual(M.workflowMinutes([{ estimateMin: 30 }, { estimateMin: '15' }, {}]), 45);
+});
+
+test('fluxos: prazos distribuídos até a entrega', () => {
+  assert.deepStrictEqual(M.distributeDue(3, '2026-11-02', '2026-11-08'), ['2026-11-04', '2026-11-06', '2026-11-08']);
+  assert.deepStrictEqual(M.distributeDue(2, '2026-11-02', '2026-11-01'), ['2026-11-02', '2026-11-02']); // entrega já passou: hoje
+});

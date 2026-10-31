@@ -417,6 +417,45 @@
     return months.map(m => ({ month: m, avg: byMonth[m].reduce((a, b) => a + b, 0) / byMonth[m].length, count: byMonth[m].length }));
   }
 
+  // ---------- fluxos de trabalho ----------
+  // execução = CÓPIA das etapas do modelo naquele momento: editar o modelo depois não muda o que já começou
+  function instantiateRun(tpl, projectId, now, makeId = uid) {
+    const idMap = {};
+    for (const s of tpl.steps) idMap[s.id] = makeId();
+    return {
+      templateId: tpl.id, templateVersion: tpl.version || 1, name: tpl.name, projectId, status: 'active', startedAt: now, notes: '',
+      steps: tpl.steps.map(s => ({
+        id: idMap[s.id], title: s.title, instructions: s.instructions || '', estimateMin: Number(s.estimateMin) || 0, optional: !!s.optional,
+        criteria: s.criteria || '', dependsOn: s.dependsOn ? idMap[s.dependsOn] || null : null, state: 'pending', note: '', taskId: null,
+        items: (s.items || []).map(i => ({ id: makeId(), text: i.text, required: i.required !== false, done: false })),
+      })),
+    };
+  }
+  const stepClosed = s => s.state === 'done' || s.state === 'skipped';
+  function runProgress(run) {
+    const steps = run.steps || [];
+    const closed = steps.filter(stepClosed).length;
+    const requiredPending = steps.filter(s => s.state !== 'skipped').flatMap(s => s.items.filter(i => i.required && !i.done).map(i => ({ step: s.title, item: i.text })));
+    const stepsPending = steps.filter(s => !stepClosed(s) && !s.optional).map(s => s.title);
+    return { closed, total: steps.length, ratio: steps.length ? closed / steps.length : 0, requiredPending, stepsPending };
+  }
+  // marcar um item: a etapa fecha sozinha quando todos os itens estão feitos, e reabre se um for desmarcado
+  function toggleRunItem(run, stepId, itemId) {
+    return { ...run, steps: run.steps.map(s => {
+      if (s.id !== stepId) return s;
+      const items = s.items.map(i => i.id === itemId ? { ...i, done: !i.done } : i);
+      const all = items.length && items.every(i => i.done);
+      return { ...s, items, state: all ? 'done' : s.state === 'done' ? 'pending' : s.state };
+    }) };
+  }
+  function setStepState(run, stepId, state) { return { ...run, steps: run.steps.map(s => s.id === stepId ? { ...s, state } : s) }; }
+  // prazos para N etapas, espalhados de hoje até a entrega (a última cai na entrega); nunca antes de hoje
+  function distributeDue(n, todayIso, dueIso) {
+    const days = Math.max(0, daysBetween(todayIso, dueIso));
+    return Array.from({ length: n }, (_, i) => isoDate(addDays(parseDate(todayIso), Math.round(days * (i + 1) / n))));
+  }
+  const workflowMinutes = steps => (steps || []).reduce((a, s) => a + (Number(s.estimateMin) || 0), 0);
+
   // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
   // "Entregar banner até sexta 14h !urgente" → título "Entregar banner", prazo na próxima sexta, 14:00, urgente
   const WEEK = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
@@ -479,7 +518,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    BACKUP_VERSION, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    BACKUP_VERSION, instantiateRun, runProgress, toggleRunItem, setStepState, distributeDue, workflowMinutes, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

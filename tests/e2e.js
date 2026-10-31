@@ -389,6 +389,26 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
     /40 min registrados no exercício/.test(praticaToast) && ex.status === 'done' && ex.avg === 3.5 && ex.min === 40 && ex.notas === 2 && /Link inválido/.test(evErr) && /^Praticar: /.test(preTitle) && fromRes,
     JSON.stringify({ praticaToast, ex, evErr, preTitle, fromRes }));
 
+  // fluxos: modelos iniciais, aplicar com tarefas e prazos (sem duplicar), itens fecham etapa, editar modelo não muda execução, concluir com pendência pede confirmação
+  await go('fluxos'); await page.click('[data-act="wf-starter"]'); await sleep(250);
+  const tplId = await page.evaluate(() => Store.S.workflows.find(w => w.name === 'Tratamento de imagem').id);
+  await go('demandas'); await page.keyboard.type('Fotos do catálogo até 20/11'); await page.keyboard.press('Enter'); await sleep(150);
+  const dId = await page.evaluate(() => Store.S.projects.find(p => p.name === 'Fotos do catálogo').id);
+  await go('demanda/' + dId);
+  await page.click(`[data-act="wf-apply:${dId}"]`);
+  await page.selectOption('dialog[open] [name=templateId]', tplId); await page.check('dialog[open] [name=withTasks]'); await page.check('dialog[open] [name=distribute]');
+  await page.click('dialog[open] button[type=submit]'); await page.click('dialog.small[open] button[value=yes]'); await sleep(300);
+  const r0 = await page.evaluate(id => Store.S.runs.find(r => r.projectId === id), dId);
+  for (const it of r0.steps[0].items) { await page.click(`[data-act="run-item:${r0.id}:${r0.steps[0].id}:${it.id}"]`); await sleep(100); }
+  const semDuplicar = await page.locator(`[data-act^="run-task:${r0.id}"]`).count() === 0;
+  await go('fluxo/' + tplId);
+  await page.fill('.wf-step:first-child [name=st-title]', 'Preparação (nova)'); await page.click('.wf-editor button.primary'); await sleep(200);
+  await go('demanda/' + dId);
+  await page.click(`[data-act="run-status:${r0.id}:done"]`); const pendTxt = await page.locator('dialog.small[open]').innerText(); await page.click('dialog.small[open] button[value=no]');
+  const fl = await page.evaluate(([id, tid]) => { const r = Store.S.runs.find(x => x.projectId === id); return { tasks: Store.S.tasks.filter(t => t.runId === r.id).map(t => t.due), step0: r.steps[0].state, title0: r.steps[0].title, runV: r.templateVersion, tplV: Store.S.workflows.find(w => w.id === tid).version, status: r.status }; }, [dId, tplId]);
+  check('Fluxos (aplicar com tarefas e prazos, etapa fecha pelos itens, sem duplicar tarefas, modelo editado não muda a execução, pendências confirmadas)',
+    fl.tasks.length === 3 && fl.tasks[2] === '2026-11-20' && fl.step0 === 'done' && semDuplicar && fl.title0 === 'Preparação' && fl.runV === 1 && fl.tplV === 2 && /Concluir com pendências/.test(pendTxt) && fl.status === 'active', JSON.stringify({ fl, semDuplicar }));
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));

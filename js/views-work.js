@@ -115,7 +115,7 @@
       <p class="muted small">${[cname(p.clientId), p.category].filter(Boolean).join(' · ') || 'Sem solicitante'}</p>
       <div class="card-meter">${U.meter(prog)}<span class="mono small">${Math.round(prog * 100)}%</span></div>
       <footer>${U.priorityBadge(p.priority)}<span class="small">${dueText(p.due, closed)}</span></footer>
-      ${small ? '' : h`<p class="small muted">${open} tarefa(s) aberta(s) · ${U.fmtDur(spent)}${p.estimateH ? ' de ' + p.estimateH + ' h' : ''}</p>`}
+      ${small ? '' : h`<p class="small muted">${open} tarefa(s) aberta(s) · ${U.fmtDur(spent)}${p.estimateH ? ' de ' + M.f1(p.estimateH) + ' h' : ''}</p>`}
     </article>`;
   }
   Views.demandas = {
@@ -137,11 +137,11 @@
         body = h`<div class="kanban">${S.settings.projectStatuses.filter(s => v.closed || s.kind !== 'cancelled').map(s => { const col = all.filter(p => p.status === s.id); return h`<section class="kcol" data-drop="${s.id}" aria-label="${s.name}"><header><h3>${s.name}</h3><span class="badge muted">${col.length}</span></header>${col.map(p => projectCard(p, true))}</section>`; })}</div><p class="muted small">Arraste os cards entre as colunas para mudar o status.</p>`;
       } else if (!list.length) body = U.empty('Nenhuma demanda com estes filtros', 'Ajuste a busca ou os filtros acima.');
       else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Demanda</th><th>Solicitante</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
-          ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:demanda:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + p.estimateH + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
+          ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:demanda:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + M.f1(p.estimateH) + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
       else body = h`<div class="cards">${list.map(p => projectCard(p))}</div>`;
-      return h`${App.page('Demandas', `${list.length} de ${S.projects.length} demanda(s)`, h`<button class="btn ghost" data-act="new:projects">Formulário completo</button>`)}${App.quick('projects', v.client ? { clientId: v.client } : {})}${S.projects.length ? tools : ''}${body}`;
+      return h`${App.page('Demandas', `${list.length} de ${S.projects.length} demanda(s)`, h`<button class="btn ghost" data-act="wf-project">${icon('flow')} Nova demanda por modelo</button><button class="btn ghost" data-act="new:projects">Formulário completo</button>`)}${App.quick('projects', v.client ? { clientId: v.client } : {})}${S.projects.length ? tools : ''}${body}`;
     },
-    mount(root) { kanbanDnD(root, async (id, status) => { const p = St.get('projects', id); if (!p || p.status === status) return; const rec = { ...p, status, statusSince: now() }; rec.completedAt = M.statusKind(S.settings, status) === 'done' ? p.completedAt || now() : null; try { await St.save('projects', rec, { verb: 'movida para ' + U.projectStatusName(status) }); } catch (e) { U.fail(e); } }); },
+    mount(root) { kanbanDnD(root, async (id, status) => { const p = St.get('projects', id); if (!p || p.status === status) return; const rec = { ...p, status, statusSince: now() }; rec.completedAt = M.statusKind(S.settings, status) === 'done' ? p.completedAt || now() : null; try { await St.save('projects', rec, { verb: 'movida para ' + U.projectStatusName(status) }); if (rec.completedAt && App.warnRunsOnDone) App.warnRunsOnDone(rec.id); } catch (e) { U.fail(e); } }); },
     act(act, [k, val]) { if (act === 'mode') { const v = vs('projects', PDEF); v.mode = val; savePref('projects', { mode: val }); App.render(); } },
     change: e => filterChange(e, 'projects', PDEF), input: e => filterInput(e, 'projects', PDEF),
   };
@@ -189,7 +189,7 @@
       ${cl.length ? h`<span class="small muted" title="Subtarefas">${icon('list', 'sm')}${cl.filter(c => c.done).length}/${cl.length}</span>` : ''}
       ${U.priorityBadge(t.priority)}
       <span class="small tr-due">${t.due ? dueText(t.due, t.status === 'done') : ''}</span>
-      <span class="small mono muted tr-time" title="Trabalhado / estimado">${spent || t.estimateH ? U.fmtDur(spent) + (t.estimateH ? ' / ' + t.estimateH + ' h' : '') : ''}</span>
+      <span class="small mono muted tr-time" title="Trabalhado / estimado">${spent || t.estimateH ? U.fmtDur(spent) + (t.estimateH ? ' / ' + M.f1(t.estimateH) + ' h' : '') : ''}</span>
       ${t.status !== 'done' ? h`<button class="icon-btn" data-act="session-start:${t.projectId || ''}:${t.id}" aria-label="Iniciar cronômetro nesta tarefa" title="Iniciar cronômetro">${icon('play')}</button>` : ''}
     </li>`;
   }
@@ -210,13 +210,14 @@
         <div class="stat"><span class="stat-label">Status</span><span>${pBadge(p)} ${U.priorityBadge(p.priority)}</span><span class="stat-hint">desde ${p.statusSince ? U.fmtDate(M.isoDate(p.statusSince)) : '—'}</span></div>
         <div class="stat"><span class="stat-label">Progresso</span><span class="stat-value">${Math.round(prog * 100)}%</span>${U.meter(prog)}<span class="stat-hint">${tasks.length ? tasks.filter(x => x.status === 'done').length + ' de ' + tasks.length + ' tarefas' : 'sem tarefas: segue o status'}</span></div>
         <div class="stat"><span class="stat-label">Prazo</span><span>${dueText(p.due, M.isClosed(S.settings, p))}</span><span class="stat-hint">início ${U.fmtDate(p.start)} · criado ${U.fmtDate(M.isoDate(p.created))}</span></div>
-        <div class="stat"><span class="stat-label">Horas</span><span class="stat-value ${est && spent > est ? 'txt-bad' : ''}">${U.fmtDur(spent)}</span>${est ? U.meter(spent / est, spent > est ? 'bad' : '') : ''}<span class="stat-hint">${est ? 'de ' + p.estimateH + ' h estimadas' : 'sem estimativa'}</span></div>
+        <div class="stat"><span class="stat-label">Horas</span><span class="stat-value ${est && spent > est ? 'txt-bad' : ''}">${U.fmtDur(spent)}</span>${est ? U.meter(spent / est, spent > est ? 'bad' : '') : ''}<span class="stat-hint">${est ? 'de ' + M.f1(p.estimateH) + ' h estimadas' : 'sem estimativa'}</span></div>
       </section>
       <div class="grid-2 wide-left">
         <div class="stack-lg">
           <section class="panel"><header class="panel-head"><h2>Tarefas</h2><button class="btn small ghost" data-act="new:tasks" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>Formulário completo</button></header>
             ${App.quick('tasks', { projectId: id })}
             ${tasks.length ? h`<ul class="task-list">${tasks.map(x => taskRow(x))}</ul>` : U.empty('Sem tarefas', 'Divida a demanda em tarefas para acompanhar o progresso.')}</section>
+          ${Views.flowPanel ? Views.flowPanel(p) : ''}
           <section class="panel"><header class="panel-head"><h2>Revisões e aprovações</h2><button class="btn small" data-act="new:revisions" data-defaults='${JSON.stringify({ projectId: id })}'>${icon('plus')} Registrar versão</button></header>
             ${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r))}</ul>` : U.empty('Nenhuma versão enviada', 'Registre cada versão enviada ao solicitante e o retorno recebido.')}</section>
           <section class="panel"><header class="panel-head"><h2>Tempo registrado</h2><span class="muted">${sessions.length} sessão(ões)</span></header>

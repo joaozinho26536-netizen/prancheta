@@ -50,6 +50,7 @@
         const done = M.statusKind(S.settings, rec.status) === 'done';
         rec.completedAt = done ? (old && old.completedAt) || now() : null;
       },
+      after(rec, old) { if (rec.completedAt && (!old || !old.completedAt) && App.warnRunsOnDone) App.warnRunsOnDone(rec.id); },
     },
     tasks: {
       title: 'tarefa', fields: () => [
@@ -224,7 +225,7 @@
     const r = St.get(type, id); if (!r) return false;
     const name = r.name || r.title || r.version || '';
     if (!await U.ask({ title: `Excluir ${(St.LABELS[type] || 'registro').toLowerCase()}?`, text: `${name ? '“' + name + '” será excluído(a). ' : ''}${DELETE_TEXT[type] || ''} Esta ação não pode ser desfeita.`, ok: 'Excluir', danger: true })) return false;
-    try { await St.remove(type, id); U.toast('Excluído.', 'good'); if (type === 'projects' && location.hash.startsWith('#demanda/')) go('demandas'); return true; } catch (e) { U.fail(e); return false; }
+    try { await St.remove(type, id); U.toast('Excluído.', 'good'); if (type === 'projects' && location.hash.startsWith('#demanda/')) go('demandas'); if (type === 'workflows' && location.hash.startsWith('#fluxo/')) { App.resetGuard && App.resetGuard(); go('fluxos'); } return true; } catch (e) { U.fail(e); return false; }
   };
   App.toggleTask = async function (id) {
     const t = St.get('tasks', id); if (!t) return;
@@ -415,7 +416,7 @@
     ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'], ['anotacoes', 'Anotações', 'note', 'top'],
     ['calendario', 'Calendário', 'calendar', 'top'], ['tempo', 'Controle de tempo', 'clock', 'top', 'Tempo'], ['relatorios', 'Relatórios', 'chart', 'top'],
     // na barra lateral: [..., 'rail', rótulo curto, grupo]
-    ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'],
+    ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'], ['fluxos', 'Fluxos de trabalho', 'flow', 'rail', 'Fluxos', 'Trabalho'],
     ['pausas', 'Pausas', 'coffee', 'rail', '', 'Tempo'],
     ['referencias', 'Referências criativas', 'image', 'rail', 'Referências', 'Criação'],
     ['cursos', 'Cursos', 'cap', 'rail', '', 'Aprendizado'], ['biblioteca', 'Biblioteca', 'book', 'rail', '', 'Aprendizado'], ['pratica', 'Prática', 'flask', 'rail', '', 'Aprendizado'],
@@ -435,7 +436,7 @@
     try { main.innerHTML = U.html(view.render(id)); }
     catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
     if (view.mount) view.mount(main, id);
-    const active = r === 'demanda' ? 'demandas' : r === 'solicitante' ? 'solicitantes' : Views[r] ? r : 'dashboard';
+    const active = r === 'demanda' ? 'demandas' : r === 'solicitante' ? 'solicitantes' : r === 'fluxo' ? 'fluxos' : Views[r] ? r : 'dashboard';
     document.querySelectorAll('[data-r]').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === active));
     movePill();
     const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'demanda' ? 'Demanda' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
@@ -467,6 +468,7 @@
       case 'edit': App.edit(a, b); break;
       case 'del': App.del(a, b); break;
       case 'archive': App.toggleArchive(a, b); break;
+      case 'wf-project': App.newProjectFromTemplate(); break;
       case 'go': go(a + (b ? '/' + b : '')); break;
       case 'toggle-task': App.toggleTask(a); break;
       case 'toggle-check': App.toggleCheck(a, b, c, el.dataset.item); break;
@@ -552,6 +554,7 @@
     S.events.forEach(ev => has(ev.title, ev.notes) && out.push(['Evento', ev.title + ' · ' + U.fmtDate(ev.date), 'edit:events:' + ev.id]));
     S.courses.forEach(c => has(c.name, c.platform, c.instructor, c.description, c.learnings, c.notes, c.nextActivity) && out.push(['Curso', c.name, 'edit:courses:' + c.id]));
     S.resources.forEach(r => has(r.title, r.description, r.summary, r.notes, r.tags, r.tool) && out.push(['Material', r.title, 'edit:resources:' + r.id]));
+    S.workflows.forEach(w => has(w.name, w.description, w.category, w.steps.map(s => [s.title, s.instructions, (s.items || []).map(i => i.text)])) && out.push([w.kind === 'checklist' ? 'Checklist' : 'Fluxo', w.name, 'go:fluxo:' + w.id]));
     S.exercises.forEach(x => has(x.title, x.description, x.goal, x.technique, x.result, x.difficulties) && out.push(['Exercício', x.title, 'edit:exercises:' + x.id]));
     return out.slice(0, 30);
   }
@@ -719,7 +722,11 @@
     await window.Lock.gate();
     setupMusic();
     St.onChange(() => { App.applyAccent(); render(); renderMusic(); });
-    window.addEventListener('hashchange', render);
+    // editor com alterações não salvas: confirma antes de sair (volta para o editor se cancelar)
+    window.addEventListener('hashchange', () => {
+      if (App.leaveGuard && App.leaveGuard()) { if (!confirm('Há alterações não salvas neste modelo. Sair sem salvar?')) { location.hash = lastRoute; return; } App.resetGuard(); }
+      render();
+    });
     render();
     reminders().catch(console.error);
     document.body.classList.remove('loading');
