@@ -297,6 +297,26 @@
       const avgStretch = sum30.workedMs / Math.max(1, breaksCount + distinctDays);
       if (avgStretch > s.breakReminderMin * MIN * 1.5) add('info', 'Pausas', 'Blocos de trabalho longos sem pausa', `Em média ${f1(avgStretch / HOUR)} h de trabalho entre pausas, acima do lembrete configurado de ${s.breakReminderMin} min.`, 'Horas registradas divididas pelo número de pausas mais dias trabalhados (30 dias).');
     }
+    // 13. revisão final antes da entrega
+    for (const p of activeProjects) {
+      if (!p.due) continue;
+      const d = daysBetween(today, p.due);
+      if (d >= 0 && d <= 2 && !(st.revisions || []).some(r => r.projectId === p.id)) add('info', 'Entregas', `Faça uma revisão final de “${p.name}”`, `Entrega ${d === 0 ? 'hoje' : 'em ' + d + ' dia(s)'} e nenhuma versão registrada em Revisões. Confira o arquivo e registre o envio.`, 'Demanda ativa com prazo em até 2 dias e sem revisão registrada.');
+    }
+    // 14. itens obrigatórios de fluxo pendentes perto do prazo
+    for (const r of (st.runs || []).filter(r => r.status === 'active')) {
+      const p = st.projects.find(x => x.id === r.projectId), pend = runProgress(r).requiredPending;
+      if (p && p.due && pend.length && daysBetween(today, p.due) <= 2) add('warn', 'Fluxos', `${pend.length} item(ns) obrigatório(s) pendente(s) em “${p.name}”`, pend.slice(0, 4).map(x => x.item).join(' · '), 'Fluxo ativo com itens obrigatórios abertos e prazo da demanda em até 2 dias.');
+    }
+    // 15. cursos parados
+    for (const c of (st.courses || []).filter(c => c.status === 'doing' && !c.archived)) {
+      const last = lastActivity(st, 'courseId', c) || c.created || 0;
+      const d = Math.floor((now - last) / DAY);
+      if (d >= 14) add('info', 'Aprendizado', `“${c.name}” está parado há ${d} dias`, c.nextActivity ? `Próxima atividade anotada: ${c.nextActivity}.` : 'Anote a próxima atividade para retomar mais fácil, ou pause o curso.', 'Curso em andamento sem sessão de estudo ou atualização de progresso há 14 dias ou mais.');
+    }
+    // 16. exercícios esperando avaliação
+    const review = (st.exercises || []).filter(x => x.status === 'review' && !x.archived);
+    if (review.length) add('info', 'Prática', `${review.length} exercício(s) aguardando sua avaliação`, review.slice(0, 4).map(x => x.title).join(' · '), 'Exercício com status “aguardando avaliação”.');
     return { items: out, lack };
   }
   function workHoursPerDay(s) { const [a, b] = [s.workStart, s.workEnd].map(x => { const [h, m] = x.split(':').map(Number); return h + m / 60; }); return Math.max(0, b - a - (s.lunchMin || 0) / 60); }
@@ -316,7 +336,7 @@
     tasks: { required: ['title'], dates: ['date', 'due'], times: ['time'], nums: ['estimateH'], order: [['date', 'due', 'O prazo não pode ser antes da data de início.']] },
     clients: { required: ['name'], nums: ['agreedValue'] },
     events: { required: ['title', 'date'], dates: ['date'], times: ['time', 'endTime'] },
-    revisions: { required: ['projectId', 'version'], dates: ['sentAt', 'nextDue'] },
+    revisions: { required: ['projectId', 'version'], dates: ['sentAt', 'nextDue'], urls: ['link'] },
     refs: { required: ['name'], urls: ['url'] },
     notes: { required: ['title'] },
     goals: { required: ['title', 'metric', 'target'], nums: ['target'] },
@@ -456,6 +476,33 @@
   }
   const workflowMinutes = steps => (steps || []).reduce((a, s) => a + (Number(s.estimateMin) || 0), 0);
 
+  // ---------- arquivos: nomes padronizados e estrutura de pastas ----------
+  // trecho seguro para nome de arquivo/pasta em qualquer sistema: sem acentos, espaços viram hífen
+  function cleanSegment(v) {
+    return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\\/:*?"<>|]+/g, ' ').trim().replace(/\s+/g, '-')
+      .replace(/[^A-Za-z0-9._-]/g, '').replace(/-{2,}/g, '-').replace(/_{2,}/g, '_').replace(/^[-_.]+|[-_.]+$/g, '');
+  }
+  // padrão com {solicitante} {demanda} {peca} {versao} {data} {sufixo}; campos vazios somem junto com o separador
+  function buildFileName(parts, pattern, ext) {
+    const vals = { solicitante: cleanSegment(parts.solicitante), demanda: cleanSegment(parts.demanda), peca: cleanSegment(parts.peca),
+      versao: parts.versao ? String(Math.max(0, parseInt(parts.versao, 10) || 0)).padStart(2, '0') : '', data: /^\d{4}-\d{2}-\d{2}$/.test(parts.data || '') ? parts.data : '', sufixo: cleanSegment(parts.sufixo) };
+    let name = String(pattern || '').replace(/\{(\w+)\}/g, (_, k) => vals[k] ?? '');
+    name = name.replace(/V(?=[_\-.]|$)/g, m => vals.versao ? m : '')       // "V" sem número de versão sai
+      .replace(/[_-]{2,}/g, m => m[0]).replace(/^[_.-]+|[_.-]+$/g, '');
+    const e = String(ext || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return name ? name + (e ? '.' + e : '') : '';
+  }
+  function folderPaths(root, template) {
+    const r = cleanSegment(root);
+    const subs = (template || []).map(l => l.split('/').map(cleanSegment).filter(Boolean).join('/')).filter(Boolean);
+    return r ? [r, ...subs.map(s => r + '/' + s)] : [];
+  }
+  // script para o Terminal (Mac/Linux); os nomes já passaram por cleanSegment, então não há caracteres especiais
+  function folderScript(paths) {
+    return ['#!/bin/sh', '# Estrutura de pastas gerada pela Prancheta.', '# Uso: abra o Terminal na pasta onde quer criar a estrutura e rode:  sh ' + 'criar-pastas.sh', 'set -e',
+      ...paths.map(p => "mkdir -p '" + p + "'"), "echo \"Pastas criadas em: $(pwd)/" + (paths[0] || '') + "\"", ''].join('\n');
+  }
+
   // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
   // "Entregar banner até sexta 14h !urgente" → título "Entregar banner", prazo na próxima sexta, 14:00, urgente
   const WEEK = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
@@ -499,7 +546,7 @@
   const DEFAULT_SETTINGS = {
     name: '', workStart: '09:00', workEnd: '18:00', lunchMin: 60, workDays: [1, 2, 3, 4, 5], weekStart: 1,
     dateFormat: 'dd/mm/aaaa', breakReminderMin: 50, notify: false, maxTasksPerDay: 5, staleDays: 5, accent: '', theme: 'claro', autoLockMin: 10,
-    calendarView: 'week', music: { current: '', saved: [] }, dashboard: { charts: true, activity: true, goals: true, deadlines: true },
+    calendarView: 'week', music: { current: '', saved: [] }, dashboard: { today: true, deadlines: true, goals: true, charts: true, activity: true, flows: false, learning: false, practice: false },
     breakTypes: [{ id: 'short', name: 'Pausa curta', min: 10 }, { id: 'long', name: 'Pausa longa', min: 20 }, { id: 'lunch', name: 'Almoço', min: 60 }],
     categories: ['Criação de logotipo', 'Identidade visual', 'Branding', 'Posts para redes sociais', 'Banners e anúncios', 'Flyers e panfletos', 'Cartazes', 'Apresentações', 'Materiais impressos', 'Embalagens', 'Edição e tratamento de imagens', 'Peças publicitárias', 'Outros'],
     projectStatuses: [
@@ -508,6 +555,8 @@
       { id: 'review', name: 'Em revisão', kind: 'active' }, { id: 'done', name: 'Concluída', kind: 'done' }, { id: 'cancelled', name: 'Cancelada', kind: 'cancelled' }],
     refCategories: ['Branding', 'Tipografia', 'Composição', 'Cores', 'Campanhas', 'Layouts', 'Geral'],
     noteKinds: ['Ideia', 'Briefing', 'Instrução', 'Feedback', 'Decisão criativa', 'Pendência', 'Importante'],
+    namePattern: '{solicitante}_{demanda}_{peca}_V{versao}_{data}_{sufixo}',
+    folderTemplate: ['01_Briefing', '02_Referencias', '03_Arquivos_Editaveis', '04_Assets', '05_Exportacoes', '06_Revisoes', '07_Entrega_Final'],
     tools: ['Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign', 'Adobe Premiere Pro', 'Adobe After Effects', 'Adobe Lightroom', 'Adobe Acrobat', 'Figma', 'Canva'],
     evalCriteria: ['Domínio técnico', 'Composição', 'Tipografia', 'Cores', 'Hierarquia visual', 'Precisão na execução', 'Organização do arquivo', 'Cumprimento do objetivo'],
     learningCategories: ['Fundamentos de design', 'Tipografia', 'Cores', 'Composição e layout', 'Edição de imagem', 'Ilustração', 'Vídeo e animação', 'Impressão e produção gráfica', 'Branding', 'Produtividade e atalhos', 'Outros'],
@@ -518,7 +567,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    BACKUP_VERSION, instantiateRun, runProgress, toggleRunItem, setStepState, distributeDue, workflowMinutes, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    BACKUP_VERSION, cleanSegment, buildFileName, folderPaths, folderScript, instantiateRun, runProgress, toggleRunItem, setStepState, distributeDue, workflowMinutes, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

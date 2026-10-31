@@ -432,6 +432,20 @@ dialog::backdrop { background: rgba(37, 42, 38, .35); }
 .wf-item { display: flex; gap: 8px; align-items: center; }
 .wf-item [name=it-text] { flex: 1; }
 
+.k-study { border-color: #4F7A8A !important; } .legend .k-study { background: #4F7A8A; }
+.k-practice { border-color: #8A6A4F !important; } .legend .k-practice { background: #8A6A4F; }
+.rev-row { display: flex; align-items: center; gap: 4px; }
+.rev-row .row-btn { flex: 1; min-width: 0; }
+/* arquivos */
+.preview { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; padding: 10px 12px; background: var(--surface-2); border-radius: var(--radius-sm); }
+.preview code, .tree { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.preview code { flex: 1; min-width: 0; }
+.tree { margin: 0 0 12px; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); white-space: pre; overflow-x: auto; }
+details { margin-top: 10px; }
+details summary { cursor: pointer; color: var(--link); }
+details form, details p { margin-top: 8px; }
+details textarea { width: 100%; font-family: var(--mono); font-size: 13px; }
+
 /* escrita rápida */
 .quick { position: relative; display: flex; align-items: center; }
 .quick input { flex: 1; padding: 13px 16px 13px 44px; border-radius: 999px; font-size: 15px; background: var(--glass); border: 1px solid var(--line-2); }

@@ -122,11 +122,11 @@
     return out;
   }
   // abre um formulário; onSave recebe os valores e deve gravar (erros com .fields voltam para os campos)
-  function form({ title, fields, value = {}, onSave, onDelete, extra, submit = 'Salvar', check }) {
+  function form({ title, fields, value = {}, onSave, onDelete, onDuplicate, extra, submit = 'Salvar', check }) {
     const d = dialog(h`<form class="form" novalidate><header><h2>${title}</h2><button type="button" class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
       <div class="form-grid">${fields.map(f => fieldHtml(f, value[f.k]))}</div>${extra || ''}
       <p class="form-error" role="alert"></p>
-      <footer>${onDelete ? h`<button type="button" class="btn danger ghost" data-delete>${icon('trash')} Excluir</button>` : ''}<span class="grow"></span><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">${submit}</button></footer></form>`, 'wide');
+      <footer>${onDelete ? h`<button type="button" class="btn danger ghost" data-delete>${icon('trash')} Excluir</button>` : ''}${onDuplicate ? h`<button type="button" class="btn ghost" data-duplicate>Duplicar</button>` : ''}<span class="grow"></span><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">${submit}</button></footer></form>`, 'wide');
     const f = d.querySelector('form');
     let dirty = false, busy = false;
     f.addEventListener('input', () => { dirty = true; });
@@ -139,6 +139,7 @@
       if (t.matches('[data-del-check]')) { t.closest('.cl-row').remove(); dirty = true; }
       if (t.matches('[data-clear-image]')) { f.elements[t.dataset.clearImage].value = ''; t.previousElementSibling.remove(); t.remove(); dirty = true; }
       if (t.matches('[data-delete]')) { if (await onDelete()) { dirty = false; d.close(); } }
+      if (t.matches('[data-duplicate]')) { if (dirty && !await ask({ title: 'Duplicar sem salvar?', text: 'A cópia é feita do registro salvo; o que você mudou neste formulário não vai junto.', ok: 'Duplicar' })) return; dirty = false; d.close(); onDuplicate(); }
     });
     f.addEventListener('change', async e => {
       const inp = e.target.closest('[data-image]'); if (!inp || !inp.files[0]) return;

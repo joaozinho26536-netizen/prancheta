@@ -231,7 +231,7 @@
           <div class="field"><label for="s-ac">Cor de destaque</label><input id="s-ac" type="color" name="accent" value="${s.accent && !['#4f8bff', '#2f5bd3'].includes(s.accent.toLowerCase()) ? s.accent : App.themeAccent()}"><small class="hint">Deixe na cor sugerida para seguir o tema.</small></div>
           <div class="field"><label for="s-mt">Alerta de dia cheio (tarefas por dia)</label><input id="s-mt" type="number" min="1" name="maxTasksPerDay" value="${s.maxTasksPerDay}"></div>
           <div class="field"><label for="s-sd">Alerta de espera do solicitante (dias)</label><input id="s-sd" type="number" min="1" name="staleDays" value="${s.staleDays}"></div>
-          <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
+          <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['today', 'Tarefas do dia'], ['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes'], ['flows', 'Etapas de fluxo pendentes'], ['learning', 'Aprendizado (cursos e estudo da semana)'], ['practice', 'Exercícios pendentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
         </div><footer><button class="btn primary">Salvar</button></footer></form>
 
       <form class="panel" data-sf="password"><h2>Senha</h2>
@@ -326,7 +326,7 @@
     if (sec === 'autolock') patch = { autoLockMin: Math.max(0, Number(fd.get('autoLockMin')) || 0) };
     if (sec === 'prefs') {
       const dash = fd.getAll('dash');
-      patch = { weekStart: Number(fd.get('weekStart')), calendarView: fd.get('calendarView'), dateFormat: fd.get('dateFormat'), theme: fd.get('theme') === 'sol' ? 'sol' : 'claro', accent: Object.values(App.THEME_ACCENT).includes(String(fd.get('accent')).toLowerCase()) ? '' : fd.get('accent'), maxTasksPerDay: Math.max(1, Number(fd.get('maxTasksPerDay')) || 5), staleDays: Math.max(1, Number(fd.get('staleDays')) || 5), dashboard: Object.fromEntries(['deadlines', 'goals', 'charts', 'activity'].map(k => [k, dash.includes(k)])) };
+      patch = { weekStart: Number(fd.get('weekStart')), calendarView: fd.get('calendarView'), dateFormat: fd.get('dateFormat'), theme: fd.get('theme') === 'sol' ? 'sol' : 'claro', accent: Object.values(App.THEME_ACCENT).includes(String(fd.get('accent')).toLowerCase()) ? '' : fd.get('accent'), maxTasksPerDay: Math.max(1, Number(fd.get('maxTasksPerDay')) || 5), staleDays: Math.max(1, Number(fd.get('staleDays')) || 5), dashboard: Object.fromEntries(['today', 'deadlines', 'goals', 'charts', 'activity', 'flows', 'learning', 'practice'].map(k => [k, dash.includes(k)])) };
     }
     try { await St.saveSettings(patch); U.toast('Configurações salvas.', 'good'); } catch (e) { U.fail(e); }
   }

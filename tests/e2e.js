@@ -409,6 +409,17 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   check('Fluxos (aplicar com tarefas e prazos, etapa fecha pelos itens, sem duplicar tarefas, modelo editado não muda a execução, pendências confirmadas)',
     fl.tasks.length === 3 && fl.tasks[2] === '2026-11-20' && fl.step0 === 'done' && semDuplicar && fl.title0 === 'Preparação' && fl.runV === 1 && fl.tplV === 2 && /Concluir com pendências/.test(pendTxt) && fl.status === 'active', JSON.stringify({ fl, semDuplicar }));
 
+  // arquivos: nome padronizado e script de pastas que realmente cria a estrutura
+  await go('arquivos');
+  await page.fill('#fl-demanda', 'Campanha de Natal'); await page.fill('#fl-solicitante', 'Marketing'); await page.fill('#fl-peca', 'Post feed'); await page.fill('#fl-versao', '2'); await page.fill('#fl-data', '2026-11-02');
+  const nomeArq = await page.locator('[data-preview-name]').innerText();
+  const [dlSh] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="fl-script"]')]);
+  const shFile = path.join(os.tmpdir(), 'prancheta-pastas.sh'); await dlSh.saveAs(shFile);
+  const pastaTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'prancheta-pastas-'));
+  require('child_process').execSync('sh ' + shFile, { cwd: pastaTmp });
+  const criadas = fs.readdirSync(path.join(pastaTmp, 'Marketing-Campanha-de-Natal')).sort();
+  check('Arquivos (nome padronizado e script de pastas que funciona)', nomeArq === 'Marketing_Campanha-de-Natal_Post-feed_V02_2026-11-02.psd' && criadas.length === 7 && criadas[0] === '01_Briefing', nomeArq + ' / ' + criadas.join(','));
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));

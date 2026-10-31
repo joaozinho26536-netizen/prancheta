@@ -241,3 +241,16 @@ test('fluxos: prazos distribuídos até a entrega', () => {
   assert.deepStrictEqual(M.distributeDue(3, '2026-11-02', '2026-11-08'), ['2026-11-04', '2026-11-06', '2026-11-08']);
   assert.deepStrictEqual(M.distributeDue(2, '2026-11-02', '2026-11-01'), ['2026-11-02', '2026-11-02']); // entrega já passou: hoje
 });
+
+test('arquivos: nome padronizado e estrutura de pastas', () => {
+  const pat = '{solicitante}_{demanda}_{peca}_V{versao}_{data}_{sufixo}';
+  assert.strictEqual(M.buildFileName({ solicitante: 'Marketing', demanda: 'Campanha de Natal', peca: 'Post feed', versao: 1, data: '2026-10-31' }, pat, 'PSD'), 'Marketing_Campanha-de-Natal_Post-feed_V01_2026-10-31.psd');
+  assert.strictEqual(M.buildFileName({ demanda: 'Ação/Promoção: "Verão"?', versao: '' }, pat, 'pdf'), 'Acao-Promocao-Verao.pdf'); // sem caracteres inválidos e sem "V" solto
+  assert.strictEqual(M.buildFileName({}, pat, 'pdf'), '');                                                                    // nada preenchido: sem nome
+  assert.strictEqual(M.cleanSegment('  Diretoria  Comercial  '), 'Diretoria-Comercial');
+  const paths = M.folderPaths('Marketing Campanha', ['01_Briefing', '05_Exportacoes/Redes', '../../etc', '']);
+  assert.deepStrictEqual(paths, ['Marketing-Campanha', 'Marketing-Campanha/01_Briefing', 'Marketing-Campanha/05_Exportacoes/Redes', 'Marketing-Campanha/etc']);
+  const sh = M.folderScript(paths);
+  assert.match(sh, /mkdir -p 'Marketing-Campanha\/05_Exportacoes\/Redes'/);
+  assert.ok(!/\.\./.test(sh.split('\n').filter(l => l.startsWith('mkdir')).join()));                                       // não sobe de pasta
+});

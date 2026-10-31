@@ -58,6 +58,7 @@
         { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
         { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients, hint: 'Vazio: usa o solicitante da demanda.' },
         { k: 'courseId', label: 'Curso (tarefa de estudo)', type: 'select', options: opt.courses },
+        { k: 'dependsOn', label: 'Depende da tarefa', type: 'select', options: () => S.tasks.filter(t => t.status !== 'done').sort((a, b) => a.title.localeCompare(b.title)).map(t => [t.id, t.title]), hint: 'Só um aviso: a tarefa mostra que está esperando a outra.' },
         { k: 'status', label: 'Status', type: 'select', options: U.TASK_STATUSES, required: true },
         { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
         { k: 'date', label: 'Início previsto', type: 'date' }, { k: 'time', label: 'Horário programado', type: 'time' },
@@ -106,6 +107,7 @@
         { k: 'sentAt', label: 'Data de envio', type: 'date' },
         { k: 'status', label: 'Status', type: 'select', options: U.REVISION_STATUSES, required: true },
         { k: 'nextDue', label: 'Próxima entrega prevista', type: 'date' },
+        { k: 'link', label: 'Link do arquivo desta versão', type: 'url', hint: 'Drive, Dropbox, WeTransfer…' },
         { k: 'feedback', label: 'Feedback recebido', type: 'textarea', full: true },
         { k: 'changes', label: 'Alterações solicitadas', type: 'textarea', full: true },
         { k: 'notes', label: 'Observações e decisões', type: 'textarea', full: true, rows: 2 },
@@ -208,6 +210,7 @@
         U.toast(old ? 'Alterações salvas.' : `${St.LABELS[type]} criado(a).`, 'good');
         if (F.after) F.after(saved, old);
       },
+      onDuplicate: old && ['tasks', 'projects'].includes(type) ? () => App.duplicate(type, id) : null,
       onDelete: old ? () => App.del(type, id) : null,
     });
   };
@@ -220,6 +223,14 @@
     exercises: 'Sessões de prática e materiais ligados continuam existindo, sem o exercício.',
     workflows: 'Fluxos já aplicados às demandas continuam com a cópia das etapas deles. Para só esconder o modelo, prefira Arquivar.',
     runs: 'As marcações deste fluxo serão perdidas. Tarefas criadas a partir das etapas continuam existindo.',
+  };
+  // duplicar tarefa ou demanda recorrente: copia o conteúdo, zera andamento e datas, e abre a cópia para ajustar
+  App.duplicate = async function (type, id) {
+    const r = St.get(type, id); if (!r) return;
+    const { id: _id, created, updated, history, completedAt, statusSince, remindedAt, runId, stepId, ...rest } = r;
+    const copy = type === 'tasks' ? { ...rest, title: r.title + ' (cópia)', status: 'todo', date: '', due: '', time: '', reminder: '', checklist: (r.checklist || []).map(c => ({ ...c, id: M.uid(), done: false })) }
+      : { ...rest, name: r.name + ' (cópia)', status: S.settings.projectStatuses[0].id, start: today(), due: '', stages: (r.stages || []).map(c => ({ ...c, id: M.uid(), done: false })) };
+    try { if (FORMS[type].before) FORMS[type].before(copy, null); const saved = await St.save(type, copy, { verb: 'duplicado(a)' }); U.toast('Cópia criada. Ajuste o que precisar.', 'good'); App.edit(type, saved.id); } catch (e) { U.fail(e); }
   };
   App.del = async function (type, id) {
     const r = St.get(type, id); if (!r) return false;
@@ -416,7 +427,7 @@
     ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'], ['anotacoes', 'Anotações', 'note', 'top'],
     ['calendario', 'Calendário', 'calendar', 'top'], ['tempo', 'Controle de tempo', 'clock', 'top', 'Tempo'], ['relatorios', 'Relatórios', 'chart', 'top'],
     // na barra lateral: [..., 'rail', rótulo curto, grupo]
-    ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'], ['fluxos', 'Fluxos de trabalho', 'flow', 'rail', 'Fluxos', 'Trabalho'],
+    ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'], ['fluxos', 'Fluxos de trabalho', 'flow', 'rail', 'Fluxos', 'Trabalho'], ['arquivos', 'Arquivos', 'file', 'rail', '', 'Trabalho'],
     ['pausas', 'Pausas', 'coffee', 'rail', '', 'Tempo'],
     ['referencias', 'Referências criativas', 'image', 'rail', 'Referências', 'Criação'],
     ['cursos', 'Cursos', 'cap', 'rail', '', 'Aprendizado'], ['biblioteca', 'Biblioteca', 'book', 'rail', '', 'Aprendizado'], ['pratica', 'Prática', 'flask', 'rail', '', 'Aprendizado'],

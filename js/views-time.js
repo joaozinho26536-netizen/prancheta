@@ -119,7 +119,7 @@
   };
 
   // ================= CALENDÁRIO =================
-  const KIND = { meeting: 'Reunião', delivery: 'Entrega', review: 'Revisão', approval: 'Aprovação', personal: 'Pessoal', other: 'Outro', task: 'Tarefa', deadline: 'Prazo de demanda', revision: 'Retorno de revisão', work: 'Expediente', break: 'Pausa', session: 'Sessão' };
+  const KIND = { study: 'Estudo', practice: 'Prática', meeting: 'Reunião', delivery: 'Entrega', review: 'Revisão', approval: 'Aprovação', personal: 'Pessoal', other: 'Outro', task: 'Tarefa', deadline: 'Prazo de demanda', revision: 'Retorno de revisão', work: 'Expediente', break: 'Pausa', session: 'Sessão' };
   // itens do calendário entre duas datas ISO (inclusive); cada tarefa aparece uma única vez
   function items(a, z, withTime) {
     const td = today(), out = [], inR = d => d && d >= a && d <= z;
@@ -129,6 +129,8 @@
       out.push({ d, time: t.time, title: t.title, kind: 'task', done: t.status === 'done', late: M.taskOverdue(t, td), sub: t.date && t.due && t.due !== t.date ? 'prazo ' + U.fmtDate(t.due, { short: true }) : '', act: 'edit:tasks:' + t.id, drag: 't:' + t.id });
     }
     for (const p of S.projects) if (inR(p.due)) out.push({ d: p.due, title: p.name, kind: 'deadline', done: M.isClosed(S.settings, p), late: M.projectOverdue(S.settings, p, td), act: 'go:demanda:' + p.id });
+    for (const c of S.courses) if (!c.archived && c.status !== 'done' && inR(c.due)) out.push({ d: c.due, title: 'Curso: ' + c.name, kind: 'study', late: c.due < td, act: 'go:cursos' });
+    for (const x of S.exercises) if (!x.archived && x.status !== 'done' && inR(x.plannedDate)) out.push({ d: x.plannedDate, title: 'Prática: ' + x.title, kind: 'practice', late: x.plannedDate < td, act: 'edit:exercises:' + x.id });
     for (const r of S.revisions) if (r.status !== 'approved' && inR(r.nextDue)) out.push({ d: r.nextDue, title: (H.pname(r.projectId) || '') + ' · ' + r.version, kind: 'revision', act: 'edit:revisions:' + r.id });
     if (withTime) {
       const add = (list, kind, label, act) => { for (const x of list) { const d = M.isoDate(x.start); if (inR(d)) out.push({ d, time: U.fmtTime(x.start), end: x.end ? U.fmtTime(x.end) : 'agora', title: label(x), kind, act: act + x.id, bg: true }); } };
@@ -165,7 +167,7 @@
         <div class="toolbar"><div class="seg"><button data-act="cal-nav:-1" aria-label="Anterior">${icon('left')}</button><button data-act="cal-nav:0">Hoje</button><button data-act="cal-nav:1" aria-label="Próximo">${icon('right')}</button></div>
           <h2 class="cal-title">${title}</h2><span class="grow"></span>${H.seg('cal', [['day', 'Dia'], ['week', 'Semana'], ['month', 'Mês']], v.view)}</div>
         ${body}
-        <ul class="legend cal-legend">${['meeting', 'delivery', 'review', 'approval', 'personal', 'task', 'deadline', 'revision', 'work', 'break'].map(k => h`<li><i class="k-${k}"></i>${KIND[k]}</li>`)}<li><i class="late-key"></i>Atrasado</li></ul>
+        <ul class="legend cal-legend">${['meeting', 'delivery', 'review', 'approval', 'personal', 'task', 'deadline', 'revision', 'study', 'practice', 'work', 'break'].map(k => h`<li><i class="k-${k}"></i>${KIND[k]}</li>`)}<li><i class="late-key"></i>Atrasado</li></ul>
         <p class="muted small">Clique num dia vazio para criar um evento. Arraste eventos e tarefas para outro dia para reagendar.</p>`;
     },
     mount(root) {

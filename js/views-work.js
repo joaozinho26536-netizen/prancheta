@@ -81,6 +81,7 @@
         ${set.dashboard.goals ? h`<section class="panel"><header class="panel-head"><h2>Metas da semana</h2><a href="#metas" class="link">Metas</a></header>
           ${weekGoals.length ? h`<ul class="rows">${weekGoals.map(g => { const pr = M.goalProgress(g, S, t); return h`<li class="goal-row"><span class="grow">${g.title}</span><span class="muted mono">${M.f1(pr.value)} / ${g.target}</span>${U.meter(pr.ratio, pr.ratio >= 1 ? 'good' : '')}</li>`; })}</ul>` : U.empty('Nenhuma meta semanal', 'Defina, por exemplo, quantas horas quer trabalhar por semana.', h`<button class="btn small" data-act="new:goals">Criar meta</button>`)}</section>` : ''}
       </div>
+      ${dashExtras(set, t, td)}
       ${set.dashboard.charts ? h`<div class="grid-3">
         <section class="panel"><header class="panel-head"><h2>Horas por demanda</h2><span class="muted">esta semana</span></header>${U.hbars(byProj, U.fmtDur)}</section>
         <section class="panel"><header class="panel-head"><h2>Andamento das tarefas</h2><span class="muted">${S.tasks.length} no total</span></header>
@@ -91,6 +92,34 @@
         ${S.activity.length ? h`<ul class="activity">${S.activity.slice(0, 10).map(a => h`<li><span class="when">${U.fmtDateTime(a.at)}</span><span>${a.text}</span></li>`)}</ul>` : U.empty('Nada registrado ainda', 'Criações, conclusões e alterações aparecem aqui.')}</section>` : ''}`;
     },
   };
+  // blocos opcionais do Início (Configurações → Blocos da página inicial); cada um leva ao registro
+  function dashExtras(set, t, td) {
+    const blocks = [];
+    if (set.dashboard.today) {
+      const list = S.tasks.filter(x => x.status !== 'done' && ((x.date || x.due) === td || M.taskOverdue(x, td))).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+      blocks.push(h`<section class="panel"><header class="panel-head"><h2>Tarefas do dia</h2><a href="#tarefas" class="link">Tarefas</a></header>
+        ${list.length ? h`<ul class="task-list">${list.slice(0, 8).map(x => taskRow(x, { project: true }))}</ul>` : U.empty('Nada para hoje', 'Tarefas com data ou prazo de hoje, e as atrasadas, aparecem aqui.')}</section>`);
+    }
+    if (set.dashboard.flows) {
+      const runs = S.runs.filter(r => r.status === 'active');
+      const next = runs.map(r => ({ r, s: r.steps.find(s => s.state === 'pending'), pr: M.runProgress(r) })).filter(x => x.s);
+      blocks.push(h`<section class="panel"><header class="panel-head"><h2>Etapas de fluxo pendentes</h2><a href="#fluxos" class="link">Fluxos</a></header>
+        ${next.length ? h`<ul class="rows">${next.slice(0, 6).map(({ r, s, pr }) => h`<li><button class="row-btn" data-act="go:demanda:${r.projectId}"><span class="grow"><span class="ellipsis block">${s.title}</span><span class="small muted">${r.name} · ${pname(r.projectId) || '—'}</span></span>${pr.requiredPending.length ? U.badge(pr.requiredPending.length + ' obrigatório(s)', 'warn') : ''}<span class="mono small">${pr.closed}/${pr.total}</span></button></li>`)}</ul>` : U.empty('Nenhum fluxo em andamento', 'Aplique um fluxo ou checklist numa demanda para acompanhar as etapas aqui.')}</section>`);
+    }
+    if (set.dashboard.learning) {
+      const [w0, w1] = M.range('week', t, set.weekStart), courses = S.courses.filter(c => c.status === 'doing' && !c.archived);
+      const nextC = courses.find(c => c.nextActivity);
+      blocks.push(h`<section class="panel"><header class="panel-head"><h2>Aprendizado</h2><span class="row"><button class="link" data-act="new:courses">Novo curso</button><button class="link" data-act="new:resources">Novo material</button></span></header>
+        <p class="small muted">Estudo e prática nesta semana: <strong>${U.fmtDur(M.studyMs(S, w0, w1, t))}</strong>${nextC ? h` · próxima atividade: <strong>${nextC.nextActivity}</strong> (${nextC.name})` : ''}</p>
+        ${courses.length ? h`<ul class="rows">${courses.slice(0, 4).map(c => h`<li class="goal-row"><button class="title-btn grow ellipsis" data-act="go:cursos">${c.name}</button><span class="mono small">${c.progress || 0}%</span>${U.meter((c.progress || 0) / 100)}</li>`)}</ul>` : U.empty('Nenhum curso em andamento', 'Cadastre um curso e use “Estudar agora” para cronometrar.')}</section>`);
+    }
+    if (set.dashboard.practice) {
+      const xs = S.exercises.filter(x => !x.archived && x.status !== 'done').sort((a, b) => (a.plannedDate || '9').localeCompare(b.plannedDate || '9'));
+      blocks.push(h`<section class="panel"><header class="panel-head"><h2>Exercícios pendentes</h2><button class="link" data-act="new:exercises">Novo exercício</button></header>
+        ${xs.length ? h`<ul class="rows">${xs.slice(0, 5).map(x => h`<li><button class="row-btn" data-act="edit:exercises:${x.id}"><span class="grow ellipsis">${x.title}</span>${U.badge(U.label(U.EX_STATUSES || [], x.status), x.status === 'review' ? 'warn' : '')}${x.plannedDate ? h`<span class="small">${dueText(x.plannedDate)}</span>` : ''}</button></li>`)}</ul>` : U.empty('Nenhum exercício pendente', 'Transforme um material da Biblioteca em exercício com “Praticar”.')}</section>`);
+    }
+    return blocks.length ? h`<div class="grid-2">${blocks}</div>` : '';
+  }
   function storageNotice() {
     let seen = false; try { seen = localStorage.getItem('prancheta.notice') === '1'; } catch { /* sem localStorage: mostra sempre */ }
     return seen ? '' : h`<div class="notice">${icon('info')}<p>Seus dados ficam guardados <strong>neste navegador, neste computador</strong>. Eles não aparecem em outro navegador ou computador, e limpar os dados do site apaga tudo. Exporte um backup de vez em quando em <a href="#configuracoes">Configurações</a>.</p><button class="btn small" data-act="dismiss-notice">Entendi</button></div>`;
@@ -186,6 +215,7 @@
       <button class="title-btn grow ellipsis" data-act="edit:tasks:${t.id}">${t.title}</button>
       ${opts.project && t.projectId ? h`<span class="muted small ellipsis tr-proj">${pname(t.projectId)}</span>` : ''}
       ${t.status !== 'done' && t.status !== 'todo' ? U.badge(U.label(U.TASK_STATUSES, t.status), t.status === 'waiting' ? 'warn' : 'blue') : ''}
+      ${t.dependsOn && t.status !== 'done' && (St.get('tasks', t.dependsOn) || {}).status && St.get('tasks', t.dependsOn).status !== 'done' ? h`<span class="small muted" title="Esperando outra tarefa">${icon('clock', 'sm')}espera “${St.get('tasks', t.dependsOn).title}”</span>` : ''}
       ${cl.length ? h`<span class="small muted" title="Subtarefas">${icon('list', 'sm')}${cl.filter(c => c.done).length}/${cl.length}</span>` : ''}
       ${U.priorityBadge(t.priority)}
       <span class="small tr-due">${t.due ? dueText(t.due, t.status === 'done') : ''}</span>
@@ -242,7 +272,7 @@
   function revRow(r, withProject) {
     const stale = r.status === 'waiting' && r.sentAt ? M.daysBetween(r.sentAt, today()) : 0;
     const tone = { approved: 'good', changes: 'warn', reviewing: 'blue', waiting: stale >= S.settings.staleDays ? 'bad' : '' }[r.status];
-    return h`<li><button class="row-btn" data-act="edit:revisions:${r.id}"><strong class="mono">${r.version}</strong><span class="grow ellipsis">${withProject ? pname(r.projectId) + ' · ' : ''}${r.changes || r.feedback || 'Sem feedback registrado'}</span>${U.badge(U.label(U.REVISION_STATUSES, r.status), tone)}<span class="small muted">${r.sentAt ? 'enviado ' + U.fmtDate(r.sentAt) : ''}${r.status === 'waiting' && stale ? ' · ' + stale + ' dia(s) sem retorno' : ''}</span></button></li>`;
+    return h`<li class="rev-row"><button class="row-btn" data-act="edit:revisions:${r.id}"><strong class="mono">${r.version}</strong><span class="grow ellipsis">${withProject ? pname(r.projectId) + ' · ' : ''}${r.changes || r.feedback || 'Sem feedback registrado'}</span>${U.badge(U.label(U.REVISION_STATUSES, r.status), tone)}<span class="small muted">${r.sentAt ? 'enviado ' + U.fmtDate(r.sentAt) : ''}${r.status === 'waiting' && stale ? ' · ' + stale + ' dia(s) sem retorno' : ''}</span></button>${M.isUrl(r.link || '') ? h`<a class="icon-btn" href="${r.link}" target="_blank" rel="noopener noreferrer" title="Abrir arquivo desta versão" aria-label="Abrir arquivo da versão ${r.version}">${icon('link')}</a>` : ''}</li>`;
   }
 
   // ================= TAREFAS =================
