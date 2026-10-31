@@ -92,6 +92,19 @@
     }
     return sum;
   }
+  // saldo da jornada (banco de horas pessoal): por dia com expediente registrado,
+  // expediente − pausas − jornada prevista para aquele dia (0 em dia que não é de trabalho = hora extra)
+  function jornadaSaldo(st, from, to, now) {
+    const wd = byDay(clipAll(st.workdays.map(w => span(w, now)), from, to));
+    const br = byDay(clipAll(breakIntervals(st.breaks, now), from, to));
+    const daily = workHoursPerDay(st.settings) * HOUR, days = {};
+    let total = 0;
+    for (const [d, ms] of Object.entries(wd)) {
+      const net = ms - (br[d] || 0), plan = st.settings.workDays.includes(new Date(parseDate(d)).getDay()) ? daily : 0;
+      days[d] = { workday: ms, net, plan, saldo: net - plan }; total += net - plan;
+    }
+    return { days, total };
+  }
   function addByHour(arr, [a, b]) {
     while (a < b) { const d = new Date(a); const end = Math.min(b, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime()); arr[d.getHours()] += end - a; a = end; }
   }
@@ -263,11 +276,11 @@
     // 10. aguardando aprovação há muito tempo
     for (const r of st.revisions.filter(r => r.status === 'waiting' && r.sentAt)) {
       const d = daysBetween(r.sentAt, today);
-      if (d >= s.staleDays) { const p = st.projects.find(x => x.id === r.projectId); add('warn', 'Aprovações', `Versão ${r.version} de “${p ? p.name : 'projeto'}” aguarda retorno há ${d} dias`, 'Considere enviar um lembrete ao cliente.', `Revisão em “aguardando feedback” há ${s.staleDays} dias ou mais.`); }
+      if (d >= s.staleDays) { const p = st.projects.find(x => x.id === r.projectId); add('warn', 'Aprovações', `Versão ${r.version} de “${p ? p.name : 'projeto'}” aguarda retorno há ${d} dias`, 'Considere enviar um lembrete ao solicitante.', `Revisão em “aguardando feedback” há ${s.staleDays} dias ou mais.`); }
     }
     for (const p of activeProjects.filter(p => statusKind(s, p.status) === 'waiting')) {
       const since = p.statusSince ? daysBetween(isoDate(p.statusSince), today) : 0;
-      if (since >= s.staleDays) add('warn', 'Aprovações', `“${p.name}” aguarda aprovação há ${since} dias`, 'Projeto parado esperando o cliente.', `Projeto em status de espera há ${s.staleDays} dias ou mais.`);
+      if (since >= s.staleDays) add('warn', 'Aprovações', `“${p.name}” aguarda aprovação há ${since} dias`, 'Projeto parado esperando o solicitante.', `Projeto em status de espera há ${s.staleDays} dias ou mais.`);
     }
 
     // 11. horários com mais horas registradas
@@ -384,7 +397,7 @@
 
   const Model = {
     DAY, HOUR, MIN, uid, pad, isoDate, parseDate, startOfDay, addDays, startOfWeek, startOfMonth, addMonths, daysBetween, at, range,
-    clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, spentMs, sinceLastBreak,
+    clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
     spotifyEmbed, validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,

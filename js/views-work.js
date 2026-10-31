@@ -1,4 +1,4 @@
-// Telas de trabalho: Dashboard, Projetos (+ detalhe), Tarefas, Revisões e Clientes (+ detalhe).
+// Telas de trabalho: Dashboard, Projetos (+ detalhe), Tarefas, Revisões e Solicitantes (+ detalhe).
 (function () {
   'use strict';
   const M = window.Model, U = window.UI, St = window.Store, S = St.S, App = window.App;
@@ -43,7 +43,7 @@
       const head = App.page(greet, new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
       if (!hasAny) return h`${head}${quick}${storageNotice()}
         <section class="panel welcome"><h2>Comece por aqui</h2>
-          <ol class="steps"><li><strong>Cadastre um projeto</strong> com cliente, categoria e prazo.</li><li><strong>Crie as tarefas</strong> do projeto, com estimativa de tempo.</li><li><strong>Inicie o expediente e o cronômetro</strong> ao trabalhar; registre suas pausas.</li></ol>
+          <ol class="steps"><li><strong>Cadastre um projeto</strong> com solicitante, categoria e prazo.</li><li><strong>Crie as tarefas</strong> do projeto, com estimativa de tempo.</li><li><strong>Inicie o expediente e o cronômetro</strong> ao trabalhar; registre suas pausas.</li></ol>
           <p class="muted">Os indicadores, gráficos, relatórios e insights aparecem conforme você registra o seu trabalho.</p>
           <div class="row"><button class="btn primary" data-act="new:projects">${icon('plus')} Criar o primeiro projeto</button><button class="btn ghost" data-act="load-demo">Ver com dados de demonstração</button></div></section>`;
 
@@ -112,7 +112,7 @@
     const open = S.tasks.filter(t => t.projectId === p.id && t.status !== 'done').length;
     return h`<article class="card ${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}" draggable="${small ? 'true' : 'false'}" data-id="${p.id}">
       <header><button class="title-btn" data-act="go:projeto:${p.id}">${p.name}</button>${small ? '' : pBadge(p)}</header>
-      <p class="muted small">${[cname(p.clientId), p.category].filter(Boolean).join(' · ') || 'Sem cliente'}</p>
+      <p class="muted small">${[cname(p.clientId), p.category].filter(Boolean).join(' · ') || 'Sem solicitante'}</p>
       <div class="card-meter">${U.meter(prog)}<span class="mono small">${Math.round(prog * 100)}%</span></div>
       <footer>${U.priorityBadge(p.priority)}<span class="small">${dueText(p.due, closed)}</span></footer>
       ${small ? '' : h`<p class="small muted">${open} tarefa(s) aberta(s) · ${U.fmtDur(spent)}${p.estimateH ? ' de ' + p.estimateH + ' h' : ''}</p>`}
@@ -125,7 +125,7 @@
         <input type="search" data-f="q" value="${v.q}" placeholder="Buscar projetos" aria-label="Buscar projetos">
         ${sel('status', S.settings.projectStatuses.map(s => [s.id, s.name]), v.status, 'Todos os status')}
         ${sel('category', S.settings.categories.map(c => [c, c]), v.category, 'Todas as categorias')}
-        ${sel('client', App.opt.clients(), v.client, 'Todos os clientes')}
+        ${sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}
         ${sel('priority', U.PRIORITIES, v.priority, 'Todas as prioridades')}
         ${v.mode !== 'kanban' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['name', 'Ordenar por nome'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
         <label class="check small"><input type="checkbox" data-f="closed"${v.closed ? U.raw(' checked') : ''}> Mostrar concluídos e cancelados</label>
@@ -136,7 +136,7 @@
         const all = filteredProjects({ ...v, closed: true, status: '' });
         body = h`<div class="kanban">${S.settings.projectStatuses.filter(s => v.closed || s.kind !== 'cancelled').map(s => { const col = all.filter(p => p.status === s.id); return h`<section class="kcol" data-drop="${s.id}" aria-label="${s.name}"><header><h3>${s.name}</h3><span class="badge muted">${col.length}</span></header>${col.map(p => projectCard(p, true))}</section>`; })}</div><p class="muted small">Arraste os cards entre as colunas para mudar o status.</p>`;
       } else if (!list.length) body = U.empty('Nenhum projeto com estes filtros', 'Ajuste a busca ou os filtros acima.');
-      else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Projeto</th><th>Cliente</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
+      else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Projeto</th><th>Solicitante</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
           ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:projeto:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + p.estimateH + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
       else body = h`<div class="cards">${list.map(p => projectCard(p))}</div>`;
       return h`${App.page('Projetos', `${list.length} de ${S.projects.length} projeto(s)`, h`<button class="btn primary" data-act="new:projects">${icon('plus')} Novo projeto</button>`)}${S.projects.length ? tools : ''}${body}`;
@@ -162,7 +162,7 @@
   Views.helpers.kanbanDnD = kanbanDnD;
 
   // ================= DETALHE DO PROJETO =================
-  const FIELD_LABELS = { name: 'Nome', title: 'Título', clientId: 'Cliente', projectId: 'Projeto', category: 'Categoria', status: 'Status', priority: 'Prioridade', start: 'Início', due: 'Prazo', date: 'Data', time: 'Horário', estimateH: 'Horas estimadas', value: 'Valor', paidValue: 'Valor recebido', description: 'Descrição', goal: 'Objetivo', links: 'Links', notes: 'Observações', stages: 'Etapas', completedAt: 'Concluído em', statusSince: 'Status desde', end: 'Fim' };
+  const FIELD_LABELS = { name: 'Nome', title: 'Título', clientId: 'Solicitante', projectId: 'Projeto', category: 'Categoria', status: 'Status', priority: 'Prioridade', start: 'Início', due: 'Prazo', date: 'Data', time: 'Horário', estimateH: 'Horas estimadas', description: 'Descrição', goal: 'Objetivo', links: 'Links', notes: 'Observações', stages: 'Etapas', completedAt: 'Concluído em', statusSince: 'Status desde', end: 'Fim' };
   function fmtVal(k, v) {
     if (v === '' || v == null) return '—';
     if (k === 'status') return U.projectStatusName(v) !== v ? U.projectStatusName(v) : U.label(U.TASK_STATUSES, v);
@@ -211,14 +211,13 @@
         <div class="stat"><span class="stat-label">Progresso</span><span class="stat-value">${Math.round(prog * 100)}%</span>${U.meter(prog)}<span class="stat-hint">${tasks.length ? tasks.filter(x => x.status === 'done').length + ' de ' + tasks.length + ' tarefas' : 'sem tarefas: segue o status'}</span></div>
         <div class="stat"><span class="stat-label">Prazo</span><span>${dueText(p.due, M.isClosed(S.settings, p))}</span><span class="stat-hint">início ${U.fmtDate(p.start)} · criado ${U.fmtDate(M.isoDate(p.created))}</span></div>
         <div class="stat"><span class="stat-label">Horas</span><span class="stat-value ${est && spent > est ? 'txt-bad' : ''}">${U.fmtDur(spent)}</span>${est ? U.meter(spent / est, spent > est ? 'bad' : '') : ''}<span class="stat-hint">${est ? 'de ' + p.estimateH + ' h estimadas' : 'sem estimativa'}</span></div>
-        ${p.value ? h`<div class="stat"><span class="stat-label">Valor</span><span class="stat-value">${U.money(p.value)}</span><span class="stat-hint">recebido ${U.money(p.paidValue)} · falta ${U.money((p.value || 0) - (p.paidValue || 0))}</span></div>` : ''}
       </section>
       <div class="grid-2 wide-left">
         <div class="stack-lg">
           <section class="panel"><header class="panel-head"><h2>Tarefas</h2><button class="btn small" data-act="new:tasks" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>${icon('plus')} Nova tarefa</button></header>
             ${tasks.length ? h`<ul class="task-list">${tasks.map(x => taskRow(x))}</ul>` : U.empty('Sem tarefas', 'Divida o projeto em tarefas para acompanhar o progresso.')}</section>
           <section class="panel"><header class="panel-head"><h2>Revisões e aprovações</h2><button class="btn small" data-act="new:revisions" data-defaults='${JSON.stringify({ projectId: id })}'>${icon('plus')} Registrar versão</button></header>
-            ${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r))}</ul>` : U.empty('Nenhuma versão enviada', 'Registre cada versão enviada ao cliente e o retorno recebido.')}</section>
+            ${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r))}</ul>` : U.empty('Nenhuma versão enviada', 'Registre cada versão enviada ao solicitante e o retorno recebido.')}</section>
           <section class="panel"><header class="panel-head"><h2>Tempo registrado</h2><span class="muted">${sessions.length} sessão(ões)</span></header>
             ${sessions.length ? h`<ul class="rows">${sessions.slice(0, 8).map(s => h`<li><button class="row-btn" data-act="time-edit:sessions:${s.id}"><span class="when">${U.fmtDateTime(s.start)}</span><span class="grow ellipsis">${(St.get('tasks', s.taskId) || {}).title || s.note || 'Sem tarefa'}</span><span class="mono">${s.end ? U.fmtDur(M.total(M.workedIntervals(s, S.breaks, t))) : 'em andamento'}</span></button></li>`)}</ul>` : U.empty('Nenhuma hora registrada', 'Inicie o cronômetro neste projeto para registrar o tempo.')}</section>
           <section class="panel"><header class="panel-head"><h2>Histórico de alterações</h2></header>${historyList(p)}</section>
@@ -263,7 +262,7 @@
         <select data-f="status" aria-label="Status">${[['open', 'Abertas'], ['all', 'Todas'], ...U.TASK_STATUSES].map(([a, b]) => h`<option value="${a}"${a === v.status ? U.raw(' selected') : ''}>${b}</option>`)}</select>
         ${sel('due', [['late', 'Atrasadas'], ['today', 'Hoje'], ['week', 'Próximos 7 dias'], ['none', 'Sem prazo']], v.due, 'Qualquer prazo')}
         ${sel('project', [['-', 'Sem projeto'], ...App.opt.projects()], v.project, 'Todos os projetos')}
-        ${sel('client', App.opt.clients(), v.client, 'Todos os clientes')}
+        ${sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}
         ${sel('priority', U.PRIORITIES, v.priority, 'Todas as prioridades')}
         ${v.mode === 'list' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['project', 'Ordenar por projeto'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
         <span class="grow"></span>${seg('tasks', [['list', 'Lista', 'list'], ['kanban', 'Kanban', 'columns'], ['agenda', 'Agenda', 'calendar']], v.mode)}</div>`;
@@ -295,55 +294,49 @@
       const waitingProjects = S.projects.filter(p => !M.isClosed(S.settings, p) && M.statusKind(S.settings, p.status) === 'waiting');
       const byProject = {};
       for (const r of list) (byProject[r.projectId] ||= []).push(r);
-      return h`${App.page('Revisões e aprovações', 'Versões enviadas, retornos dos clientes e decisões', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)}
+      return h`${App.page('Revisões e aprovações', 'Versões enviadas, retornos dos solicitantes e decisões', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)}
       ${stale.length || waitingProjects.length ? h`<section class="panel"><header class="panel-head"><h2>Parados aguardando retorno</h2><span class="muted">há ${S.settings.staleDays}+ dias, ou com status de espera</span></header><ul class="rows">
         ${stale.map(r => revRow(r, true))}${waitingProjects.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="grow ellipsis">${p.name}</span>${pBadge(p)}<span class="small muted">${p.statusSince ? M.daysBetween(M.isoDate(p.statusSince), td) + ' dia(s) neste status' : ''}</span></button></li>`)}</ul></section>` : ''}
       ${S.revisions.length ? h`<div class="toolbar">${sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${sel('status', U.REVISION_STATUSES, v.status, 'Todos os status')}</div>` : ''}
-      ${!S.revisions.length ? U.empty('Nenhuma revisão registrada', 'Ao enviar uma versão para o cliente, registre aqui. Assim você sabe o que foi pedido, o que foi aprovado e o que está parado.', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)
+      ${!S.revisions.length ? U.empty('Nenhuma revisão registrada', 'Ao enviar uma versão para o solicitante, registre aqui. Assim você sabe o que foi pedido, o que foi aprovado e o que está parado.', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)
         : !list.length ? U.empty('Nada com estes filtros', 'Ajuste os filtros.') : Object.entries(byProject).map(([pid, rs]) => h`<section class="panel"><header class="panel-head"><h2><button class="title-btn" data-act="go:projeto:${pid}">${pname(pid) || 'Projeto excluído'}</button></h2><span class="muted">${rs.length} versão(ões)</span></header><ul class="rows">${rs.map(r => revRow(r))}</ul></section>`)}`;
     },
     change: e => filterChange(e, 'revisions', RDEF),
   };
 
   // ================= CLIENTES =================
-  const CDEF = { q: '', status: '' };
-  function clientMoney(id) {
-    const ps = S.projects.filter(p => p.clientId === id);
-    const value = ps.reduce((a, p) => a + (Number(p.value) || 0), 0), paid = ps.reduce((a, p) => a + (Number(p.paidValue) || 0), 0);
-    return { value, paid, pending: value - paid };
-  }
-  Views.clientes = {
+  const CDEF = { q: '' };
+  Views.solicitantes = {
     render() {
       const v = vs('clients', CDEF), q = norm(v.q);
-      const list = S.clients.filter(c => (!q || norm([c.name, c.contactName, c.email, c.phone, c.notes].join(' ')).includes(q)) && (!v.status || c.status === v.status)).sort((a, b) => a.name.localeCompare(b.name));
-      return h`${App.page('Clientes', `${S.clients.length} cliente(s)`, h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo cliente</button>`)}
-      ${S.clients.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar clientes" aria-label="Buscar clientes">${sel('status', U.CLIENT_STATUSES, v.status, 'Todos os status')}</div>` : ''}
-      ${!S.clients.length ? U.empty('Nenhum cliente ainda', 'Só o nome é obrigatório. Contatos e valores são opcionais.', h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo cliente</button>`)
-        : !list.length ? U.empty('Nenhum cliente encontrado', 'Ajuste a busca.') : h`<div class="table-wrap"><table class="table"><thead><tr><th>Cliente</th><th>Contato</th><th>Relacionamento</th><th class="num">Projetos ativos</th><th class="num">Tarefas abertas</th><th class="num">A receber</th></tr></thead><tbody>
-        ${list.map(c => { const ps = S.projects.filter(p => p.clientId === c.id), m = clientMoney(c.id); return h`<tr><td><button class="title-btn" data-act="go:cliente:${c.id}">${c.name}</button></td><td class="small">${[c.contactName, c.email, c.phone].filter(Boolean).join(' · ') || '—'}</td><td>${U.badge(U.label(U.CLIENT_STATUSES, c.status), c.status === 'active' ? 'good' : 'muted')}</td><td class="num">${ps.filter(p => !M.isClosed(S.settings, p)).length} / ${ps.length}</td><td class="num">${S.tasks.filter(t => t.clientId === c.id && t.status !== 'done').length}</td><td class="num mono">${m.pending ? U.money(m.pending) : '—'}</td></tr>`; })}</tbody></table></div>`}`;
+      const list = S.clients.filter(c => (!q || norm([c.name, c.contactName, c.email, c.phone, c.notes].join(' ')).includes(q))).sort((a, b) => a.name.localeCompare(b.name));
+      return h`${App.page('Solicitantes', `${S.clients.length} solicitante(s)`, h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo solicitante</button>`)}
+      ${S.clients.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar solicitantes" aria-label="Buscar solicitantes"></div>` : ''}
+      ${!S.clients.length ? U.empty('Nenhum solicitante ainda', 'Cadastre os setores ou pessoas que pedem trabalho para você. Só o nome é obrigatório.', h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo solicitante</button>`)
+        : !list.length ? U.empty('Nenhum solicitante encontrado', 'Ajuste a busca.') : h`<div class="table-wrap"><table class="table"><thead><tr><th>Solicitante</th><th>Contato</th><th class="num">Projetos ativos</th><th class="num">Tarefas abertas</th><th class="num">Aguardando aprovação</th></tr></thead><tbody>
+        ${list.map(c => { const ps = S.projects.filter(p => p.clientId === c.id); return h`<tr><td><button class="title-btn" data-act="go:solicitante:${c.id}">${c.name}</button></td><td class="small">${[c.contactName, c.email, c.phone].filter(Boolean).join(' · ') || '—'}</td><td class="num">${ps.filter(p => !M.isClosed(S.settings, p)).length} / ${ps.length}</td><td class="num">${S.tasks.filter(t => t.clientId === c.id && t.status !== 'done').length}</td><td class="num">${ps.filter(p => !M.isClosed(S.settings, p) && M.statusKind(S.settings, p.status) === 'waiting').length || '—'}</td></tr>`; })}</tbody></table></div>`}`;
     },
     change: e => filterChange(e, 'clients', CDEF), input: e => filterInput(e, 'clients', CDEF),
   };
-  Views.cliente = {
+  Views.solicitante = {
     render(id) {
       const c = St.get('clients', id);
-      if (!c) return U.empty('Cliente não encontrado', 'Ele pode ter sido excluído.', h`<a class="btn" href="#clientes">Voltar</a>`);
+      if (!c) return U.empty('Solicitante não encontrado', 'Ele pode ter sido excluído.', h`<a class="btn" href="#solicitantes">Voltar</a>`);
       const ps = S.projects.filter(p => p.clientId === id).sort((a, b) => b.created - a.created);
       const delivered = ps.filter(p => M.statusKind(S.settings, p.status) === 'done').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
       const tasks = S.tasks.filter(t => t.clientId === id && t.status !== 'done');
       const revs = S.revisions.filter(r => ps.some(p => p.id === r.projectId)).sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
-      const notes = S.notes.filter(n => n.clientId === id), m = clientMoney(id);
-      return h`<nav class="crumbs"><a href="#clientes">Clientes</a> / <span>${c.name}</span></nav>
-      ${App.page(c.name, U.label(U.CLIENT_STATUSES, c.status), h`<button class="btn" data-act="new:projects" data-defaults='${JSON.stringify({ clientId: id })}'>${icon('plus')} Novo projeto</button><button class="btn" data-act="edit:clients:${id}">${icon('edit')} Editar</button><button class="btn danger ghost" data-act="del:clients:${id}">${icon('trash')} Excluir</button>`)}
+      const notes = S.notes.filter(n => n.clientId === id);
+      return h`<nav class="crumbs"><a href="#solicitantes">Solicitantes</a> / <span>${c.name}</span></nav>
+      ${App.page(c.name, c.description || '', h`<button class="btn" data-act="new:projects" data-defaults='${JSON.stringify({ clientId: id })}'>${icon('plus')} Novo projeto</button><button class="btn" data-act="edit:clients:${id}">${icon('edit')} Editar</button><button class="btn danger ghost" data-act="del:clients:${id}">${icon('trash')} Excluir</button>`)}
       <section class="panel stats-panel">
         <div class="stat"><span class="stat-label">Contato</span><span>${c.contactName || '—'}</span><span class="stat-hint">${[c.email, c.phone].filter(Boolean).join(' · ')}</span></div>
         <div class="stat"><span class="stat-label">Projetos</span><span class="stat-value">${ps.length}</span><span class="stat-hint">${delivered.length} entregue(s)</span></div>
-        <div class="stat"><span class="stat-label">Valor dos projetos</span><span class="stat-value">${U.money(m.value)}</span><span class="stat-hint">recebido ${U.money(m.paid)} · pendente ${U.money(m.pending)}</span></div>
-        ${c.agreedValue ? h`<div class="stat"><span class="stat-label">Valor acordado</span><span class="stat-value">${U.money(c.agreedValue)}</span></div>` : ''}
+        <div class="stat"><span class="stat-label">Em aberto</span><span class="stat-value">${ps.filter(p => !M.isClosed(S.settings, p)).length}</span><span class="stat-hint">${tasks.length} tarefa(s) aberta(s)</span></div>
       </section>
       <div class="grid-2">
         <section class="panel"><header class="panel-head"><h2>Histórico de solicitações</h2><span class="muted">projetos por data de pedido</span></header>
-          ${ps.length ? h`<ul class="rows">${ps.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="when">${U.fmtDate(M.isoDate(p.created))}</span><span class="grow ellipsis">${p.name}</span>${pBadge(p)}</button></li>`)}</ul>` : U.empty('Nenhum projeto', 'Projetos deste cliente aparecem aqui.')}</section>
+          ${ps.length ? h`<ul class="rows">${ps.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="when">${U.fmtDate(M.isoDate(p.created))}</span><span class="grow ellipsis">${p.name}</span>${pBadge(p)}</button></li>`)}</ul>` : U.empty('Nenhum projeto', 'Projetos deste solicitante aparecem aqui.')}</section>
         <section class="panel"><header class="panel-head"><h2>Entregas</h2></header>
           ${delivered.length ? h`<ul class="rows">${delivered.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="when">${p.completedAt ? U.fmtDate(M.isoDate(p.completedAt)) : '—'}</span><span class="grow ellipsis">${p.name}</span>${p.due && p.completedAt ? (M.isoDate(p.completedAt) <= p.due ? U.badge('no prazo', 'good') : U.badge('fora do prazo', 'warn')) : ''}</button></li>`)}</ul>` : h`<p class="muted">Nenhuma entrega concluída.</p>`}</section>
         <section class="panel"><header class="panel-head"><h2>Tarefas abertas</h2></header>${tasks.length ? h`<ul class="task-list">${tasks.map(t => taskRow(t, { project: true }))}</ul>` : h`<p class="muted">Nenhuma tarefa aberta.</p>`}</section>

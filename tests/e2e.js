@@ -30,7 +30,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const confirmYes = () => page.click(`${dlg} button[value=yes]`);
 
   // 15. navegação: todas as páginas abrem sem erro
-  const routes = ['dashboard', 'projetos', 'tarefas', 'revisoes', 'clientes', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'relatorios', 'metas', 'insights', 'configuracoes'];
+  const routes = ['dashboard', 'projetos', 'tarefas', 'revisoes', 'solicitantes', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'relatorios', 'metas', 'insights', 'configuracoes'];
   for (const r of routes) await go(r);
   check('Navegação por todas as páginas (vazio)', errors.length === 0, errors.join(' | '));
 
@@ -46,22 +46,22 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const err2 = await text('#f-due-err');
   check('Validação de formulário (obrigatório e datas)', /obrigatório/.test(err1) && /antes do início/.test(err2), `${err1} / ${err2}`);
 
-  // 1. criar projeto (com cliente)
+  // 1. criar projeto (com solicitante)
   await fill('start', '2026-11-02'); await fill('due', '2026-11-06'); await fill('estimateH', '10'); await fill('category', 'Identidade visual'); await fill('priority', 'high');
   await submit();
   await page.waitForSelector(`${dlg}`, { state: 'detached' });
   check('Criar projeto', (await page.locator('.card .title-btn', { hasText: 'Identidade Café Lua' }).count()) === 1);
 
-  // cliente
-  await go('clientes');
+  // solicitante
+  await go('solicitantes');
   await page.click('main [data-act="new:clients"] >> nth=0');
   await fill('name', 'Café Lua'); await fill('email', 'invalido');
   await submit();
   const emailErr = await text('#f-email-err');
   await fill('email', 'contato@cafelua.com'); await submit(); await page.waitForSelector(dlg, { state: 'detached' });
-  check('Cliente com validação de e-mail', /inválido/.test(emailErr) && (await page.locator('td .title-btn', { hasText: 'Café Lua' }).count()) === 1, emailErr + ' / ' + await page.locator('main').innerText());
+  check('Solicitante com validação de e-mail', /inválido/.test(emailErr) && (await page.locator('td .title-btn', { hasText: 'Café Lua' }).count()) === 1, emailErr + ' / ' + await page.locator('main').innerText());
 
-  // editar projeto: vincular cliente
+  // editar projeto: vincular solicitante
   await go('projetos');
   await page.click('.card .title-btn:has-text("Identidade Café Lua")');
   const pid = (await page.evaluate(() => location.hash)).split('/')[1];
@@ -71,7 +71,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await submit();
   await page.waitForSelector(`${dlg}`, { state: 'detached' });
   const hist = await text('.history');
-  check('Editar projeto e histórico de alterações', /Cliente/.test(hist) && /Café Lua/.test(await text('.page-head .sub')), hist.slice(0, 80));
+  check('Editar projeto e histórico de alterações', /Solicitante/.test(hist) && /Café Lua/.test(await text('.page-head .sub')), hist.slice(0, 80));
 
   // 2. tarefas: criar duas, concluir uma
   for (const [title, est] of [['Esboços do símbolo', '2'], ['Paleta de cores', '1']]) {
@@ -248,7 +248,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
 
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
-  await go('cliente/' + (await page.evaluate(() => Store.S.clients[0].id)));
+  await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));
   check('Navegação por todas as páginas (com dados), sem erros no console', errors.length === 0, errors.join(' | '));
 
   await page.screenshot({ path: path.join(__dirname, 'saida-dashboard.png'), fullPage: true }).catch(() => {});

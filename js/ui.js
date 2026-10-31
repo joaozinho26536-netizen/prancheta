@@ -32,7 +32,6 @@
   }
   function fmtClock(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${M.pad(Math.floor(s / 3600))}:${M.pad(Math.floor(s / 60) % 60)}:${M.pad(s % 60)}`; }
   const fmtHours = ms => (ms / M.HOUR).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h';
-  const money = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   function relDay(iso) {
@@ -44,7 +43,6 @@
   const PRIORITIES = [['low', 'Baixa'], ['medium', 'Média'], ['high', 'Alta'], ['urgent', 'Urgente']];
   const TASK_STATUSES = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['waiting', 'Aguardando'], ['done', 'Concluída']];
   const REVISION_STATUSES = [['waiting', 'Aguardando feedback'], ['changes', 'Alterações solicitadas'], ['reviewing', 'Em revisão'], ['approved', 'Aprovado']];
-  const CLIENT_STATUSES = [['active', 'Ativo'], ['prospect', 'Em negociação'], ['paused', 'Pausado'], ['inactive', 'Inativo']];
   const EVENT_TYPES = [['meeting', 'Reunião'], ['delivery', 'Entrega'], ['review', 'Revisão'], ['approval', 'Aprovação'], ['personal', 'Pessoal'], ['other', 'Outro']];
   const label = (list, v) => (list.find(x => x[0] === v) || [, v || '—'])[1];
   const projectStatusName = id => (S().settings.projectStatuses.find(s => s.id === id) || { name: id || '—' }).name;
@@ -211,8 +209,8 @@
   function csv(rows) { return '﻿' + rows.map(r => r.map(c => { const s = String(c ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';')).join('\n'); }
 
   window.UI = {
-    esc, raw, h, html, fmtDate, fmtTime, fmtDateTime, fmtDur, fmtClock, fmtHours, money, WEEKDAYS, MONTHS, relDay,
-    PRIORITIES, TASK_STATUSES, REVISION_STATUSES, CLIENT_STATUSES, EVENT_TYPES, label, projectStatusName,
+    esc, raw, h, html, fmtDate, fmtTime, fmtDateTime, fmtDur, fmtClock, fmtHours, WEEKDAYS, MONTHS, relDay,
+    PRIORITIES, TASK_STATUSES, REVISION_STATUSES, EVENT_TYPES, label, projectStatusName,
     icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
   };
 })();

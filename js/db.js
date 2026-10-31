@@ -5,7 +5,7 @@
   'use strict';
   const M = window.Model;
   const DB_NAME = 'prancheta', DB_VERSION = 1, ACTIVITY_MAX = 500, HISTORY_MAX = 50;
-  const LABELS = { projects: 'Projeto', tasks: 'Tarefa', clients: 'Cliente', events: 'Evento', revisions: 'Revisão', refs: 'Referência', notes: 'Anotação', goals: 'Meta', sessions: 'Sessão de trabalho', breaks: 'Pausa', workdays: 'Expediente' };
+  const LABELS = { projects: 'Projeto', tasks: 'Tarefa', clients: 'Solicitante', events: 'Evento', revisions: 'Revisão', refs: 'Referência', notes: 'Anotação', goals: 'Meta', sessions: 'Sessão de trabalho', breaks: 'Pausa', workdays: 'Expediente' };
   const NAME_KEY = { projects: 'name', clients: 'name', refs: 'name', tasks: 'title', events: 'title', notes: 'title', goals: 'title', revisions: 'version' };
 
   let db = null;

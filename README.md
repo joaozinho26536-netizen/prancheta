@@ -1,6 +1,6 @@
 # Prancheta
 
-Central de gestão pessoal para trabalho de design gráfico: projetos, tarefas, revisões, clientes, calendário, controle de jornada, pausas, referências, anotações, relatórios, metas e insights. Roda no navegador, sem servidor e sem instalar nada.
+Central de gestão pessoal para trabalho de design gráfico (pensada para designer CLT organizar as demandas que recebe dos setores da empresa): projetos, tarefas, revisões, solicitantes, calendário, controle de jornada, pausas, referências, anotações, relatórios, metas e insights. Roda no navegador, sem servidor e sem instalar nada.
 
 ## Como usar
 
@@ -22,7 +22,7 @@ Arquivos estáticos, JavaScript puro, nenhuma dependência e nenhuma etapa de bu
 | `js/db.js` | Persistência em IndexedDB, histórico de alterações, registro de atividades, exclusões com relacionamentos, importação e exportação |
 | `js/ui.js` | Peças de interface: formulários a partir de uma lista de campos, confirmações, avisos, gráficos em SVG e formatação |
 | `js/app.js` | Rotas, barra superior, formulários de cada cadastro, ações de tempo (expediente, sessão, pausa), busca global, lembretes, atalhos e dados de demonstração |
-| `js/views-work.js` | Dashboard, Projetos (cards, lista, Kanban, detalhe), Tarefas (lista, Kanban, agenda), Revisões e Clientes |
+| `js/views-work.js` | Dashboard, Projetos (cards, lista, Kanban, detalhe), Tarefas (lista, Kanban, agenda), Revisões e Solicitantes |
 | `js/views-time.js` | Controle de tempo, Pausas e Calendário (dia, semana, mês) |
 | `js/views-more.js` | Referências, Anotações, Relatórios, Metas, Insights e Configurações |
 
@@ -32,14 +32,14 @@ Os scripts são clássicos (não módulos ES) de propósito: módulos não carre
 
 Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros editáveis guardam `history` (as últimas 50 alterações, campo a campo).
 
-- **projects**: nome, `clientId`, categoria, `status` (id de um status configurável), prioridade, início, prazo, horas estimadas, valor e valor recebido, descrição, objetivo, etapas (checklist), links, observações, `statusSince` e `completedAt`
+- **projects**: nome, `clientId`, categoria, `status` (id de um status configurável), prioridade, início, prazo, horas estimadas, descrição, objetivo, etapas (checklist), links, observações, `statusSince` e `completedAt`
 - **tasks**: título, `projectId` e `clientId` (opcionais), status (a fazer, em andamento, aguardando, concluída), prioridade (baixa, média, alta, urgente), início previsto, horário, prazo, estimativa, lembrete, subtarefas, observações e `completedAt`
-- **clients**: nome, contato, e-mail, telefone, relacionamento, valor acordado e observações
+- **clients** (na tela, Solicitantes): setor, área ou pessoa que pede o trabalho, com contato, e-mail, ramal e observações
 - **workdays** (expedientes), **sessions** (sessões de trabalho, com `projectId`, `taskId` e as pausas da própria sessão) e **breaks** (pausas com tipo e duração prevista): todos guardam `start` e `end` como data e hora reais (ms). `end` vazio significa "em andamento".
 - **events**: reuniões, entregas, revisões, aprovações e compromissos pessoais, com data, horário e lembrete
 - **revisions**: versão enviada, data, feedback, alterações pedidas, status e próxima entrega, ligadas a um projeto
 - **refs**: referência criativa com link, palavras-chave, paleta, tipografia, imagem reduzida e caminho de arquivo
-- **notes**: anotações com tipo, etiquetas, fixação e vínculo opcional a projeto e cliente
+- **notes**: anotações com tipo, etiquetas, fixação e vínculo opcional a projeto e solicitante
 - **goals**: meta com métrica calculada (horas na semana ou no mês, projetos concluídos, tarefas, pausas, tarefas dentro do estimado) ou valor manual
 - **activity**: registro das ações recentes (limitado a 500)
 - **meta/settings**: todas as preferências
@@ -75,16 +75,16 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 ## Funcionalidades
 
 - **Dashboard:** projetos em andamento, concluídos e atrasados; tarefas pendentes e concluídas hoje; horas trabalhadas hoje e na semana; pausas de hoje; próximos prazos e compromissos; projetos prioritários; metas da semana; gráficos de horas por projeto, andamento das tarefas e horas por dia; atividades recentes; atalhos rápidos. Os blocos podem ser ligados e desligados. Quando não há dados, aparece um começo guiado.
-- **Projetos:** cadastro completo; cards, lista e Kanban com arrastar entre colunas; filtros (status, categoria, cliente, prioridade), busca e ordenação; página de detalhe com progresso, horas estimadas e reais, valor recebido e pendente, tarefas, revisões, tempo registrado, etapas, links, anotações, referências e histórico de alterações.
-- **Tarefas:** subtarefas, lembrete, estimativa e tempo real; lista, Kanban e agenda; filtros por status, prazo, projeto, cliente e prioridade; ordenação; atrasadas marcadas com uma faixa discreta; cronômetro direto da tarefa; concluir atualiza o progresso do projeto.
-- **Revisões e aprovações:** várias versões por projeto, com feedback, alterações e status; lista do que está parado esperando o cliente.
-- **Clientes:** só o nome é obrigatório; detalhe com histórico de solicitações, entregas (no prazo ou fora dele), tarefas abertas, aprovações, anotações e valores (sempre separados do controle de horas).
+- **Projetos:** cadastro completo; cards, lista e Kanban com arrastar entre colunas; filtros (status, categoria, solicitante, prioridade), busca e ordenação; página de detalhe com progresso, horas estimadas e reais, tarefas, revisões, tempo registrado, etapas, links, anotações, referências e histórico de alterações.
+- **Tarefas:** subtarefas, lembrete, estimativa e tempo real; lista, Kanban e agenda; filtros por status, prazo, projeto, solicitante e prioridade; ordenação; atrasadas marcadas com uma faixa discreta; cronômetro direto da tarefa; concluir atualiza o progresso do projeto.
+- **Revisões e aprovações:** várias versões por projeto, com feedback, alterações e status; lista do que está parado esperando o solicitante.
+- **Solicitantes:** só o nome é obrigatório; detalhe com histórico de solicitações, entregas (no prazo ou fora dele), tarefas abertas, aprovações e anotações.
 - **Calendário:** dia, semana e mês; prazos, tarefas, eventos, retornos de revisão, expedientes e pausas; arrastar para reagendar; clicar num dia vazio cria um evento; cada tarefa aparece uma única vez.
-- **Controle de tempo:** expediente, sessões com projeto e tarefa, pausar e retomar, registro e correção manual (com confirmação e histórico), totais de dia, semana e mês contra o planejado, estimado contra realizado por projeto, histórico por registro ou por dia.
+- **Controle de tempo:** expediente, sessões com projeto e tarefa, pausar e retomar, registro e correção manual (com confirmação e histórico), totais de dia, semana e mês contra o planejado, estimado contra realizado por projeto, saldo de jornada (banco de horas pessoal: expediente − pausas − jornada prevista; o oficial continua sendo o ponto da empresa), histórico por registro ou por dia.
 - **Pausas:** tipos configuráveis (curta, longa, almoço e outros), temporizador com anel de progresso e tempo restante, tempo desde a última pausa, totais, histórico e registro manual. A pausa só começa e termina quando você manda.
 - **Referências criativas:** link, categoria, palavras-chave, paleta (com amostras), tipografia, imagem e caminho de arquivo; busca e filtros.
-- **Anotações:** tipos, etiquetas, fixar no topo, vínculo com projeto e cliente, busca no título, no conteúdo e nas etiquetas.
-- **Relatórios:** filtros por período, projeto, cliente e categoria; indicadores objetivos separados das leituras interpretativas; gráficos; estimado contra real; projetos acima do previsto; carga das próximas semanas; exportação em CSV (sessões, projetos, tarefas) e versão para impressão.
+- **Anotações:** tipos, etiquetas, fixar no topo, vínculo com projeto e solicitante, busca no título, no conteúdo e nas etiquetas.
+- **Relatórios:** filtros por período, projeto, solicitante e categoria; indicadores objetivos separados das leituras interpretativas; gráficos; estimado contra real; projetos acima do previsto; carga das próximas semanas; exportação em CSV (sessões, projetos, tarefas) e versão para impressão.
 - **Metas:** horas por semana ou mês, projetos e tarefas concluídos, pausas, tarefas dentro do estimado ou valor manual; progresso atual e histórico dos últimos 6 períodos.
 - **Insights:** 12 regras transparentes, cada uma mostrando a regra usada; quando faltam dados, a análise diz o que falta em vez de inventar.
 - **Configurações:** nome, jornada e dias de trabalho, tipos de pausa e lembretes, notificações do sistema, categorias, tipos de nota, status de projeto com comportamento, início da semana, formato de data, cor de destaque, blocos do dashboard, limites dos alertas, backup, demonstração e apagar tudo.
@@ -108,5 +108,5 @@ node --test tests/model.test.js   # regras de cálculo (Node 18+)
 node tests/e2e.js                 # fluxos no navegador (precisa do Playwright com Chromium)
 ```
 
-- `tests/model.test.js`: 13 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes) e relatório (no prazo e fora do prazo).
-- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 25 verificações dos 15 fluxos exigidos: criar, editar e excluir projeto; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação projeto, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.
+- `tests/model.test.js`: 15 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify.
+- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 26 verificações dos 15 fluxos exigidos: criar, editar e excluir projeto; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação projeto, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.

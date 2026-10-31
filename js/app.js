@@ -26,14 +26,12 @@
     projects: {
       title: 'projeto', fields: () => [
         { k: 'name', label: 'Nome do projeto', required: true, full: true },
-        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients },
+        { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients },
         { k: 'category', label: 'Categoria', type: 'select', options: opt.categories },
         { k: 'status', label: 'Status', type: 'select', options: opt.pstatus, required: true },
         { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
         { k: 'start', label: 'Início', type: 'date' }, { k: 'due', label: 'Prazo de entrega', type: 'date' },
         { k: 'estimateH', label: 'Horas estimadas', type: 'number', step: '0.5' },
-        { k: 'value', label: 'Valor (R$, opcional)', type: 'number', step: '0.01' },
-        { k: 'paidValue', label: 'Valor recebido (R$)', type: 'number', step: '0.01', hint: 'Fica separado do controle de horas.' },
         { k: 'description', label: 'Descrição', type: 'textarea', full: true },
         { k: 'goal', label: 'Objetivo', type: 'textarea', full: true, rows: 2 },
         { k: 'stages', label: 'Etapas de produção', type: 'checklist', full: true },
@@ -51,7 +49,7 @@
       title: 'tarefa', fields: () => [
         { k: 'title', label: 'Título', required: true, full: true },
         { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
-        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients, hint: 'Vazio: usa o cliente do projeto.' },
+        { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients, hint: 'Vazio: usa o solicitante do projeto.' },
         { k: 'status', label: 'Status', type: 'select', options: U.TASK_STATUSES, required: true },
         { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
         { k: 'date', label: 'Início previsto', type: 'date' }, { k: 'time', label: 'Horário programado', type: 'time' },
@@ -72,14 +70,13 @@
       },
     },
     clients: {
-      title: 'cliente', fields: () => [
-        { k: 'name', label: 'Nome ou nome empresarial', required: true, full: true },
+      title: 'solicitante', fields: () => [
+        { k: 'name', label: 'Setor, área ou pessoa', required: true, full: true, hint: 'Ex.: Marketing, RH, Diretoria comercial.' },
         { k: 'contactName', label: 'Pessoa de contato' }, { k: 'email', label: 'E-mail', type: 'email' },
-        { k: 'phone', label: 'Telefone', type: 'tel' }, { k: 'status', label: 'Relacionamento', type: 'select', options: U.CLIENT_STATUSES },
-        { k: 'agreedValue', label: 'Valor acordado (R$)', type: 'number', step: '0.01', hint: 'Contrato mensal ou combinado geral, se houver.' },
+        { k: 'phone', label: 'Telefone ou ramal', type: 'tel' },
         { k: 'description', label: 'Descrição', type: 'textarea', full: true, rows: 2 },
         { k: 'notes', label: 'Observações', type: 'textarea', full: true },
-      ], defaults: () => ({ status: 'active' }),
+      ], defaults: () => ({}),
       check: v => v.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email) ? { email: 'E-mail inválido.' } : null,
     },
     events: {
@@ -130,7 +127,7 @@
         { k: 'body', label: 'Conteúdo', type: 'textarea', full: true, rows: 8 },
         { k: 'tags', label: 'Etiquetas', type: 'tags' },
         { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
-        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients },
+        { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients },
       ], defaults: () => ({ kind: 'Ideia', tags: [] }),
     },
     goals: {
@@ -162,7 +159,7 @@
   };
   const DELETE_TEXT = {
     projects: 'As tarefas, sessões, notas, referências e eventos ligados a ele continuam existindo, sem projeto. As revisões do projeto serão excluídas.',
-    clients: 'Projetos, tarefas e notas deste cliente continuam existindo, sem cliente.',
+    clients: 'Projetos, tarefas e notas deste solicitante continuam existindo, sem solicitante.',
     tasks: 'As sessões de tempo desta tarefa continuam registradas, sem tarefa.',
   };
   App.del = async function (type, id) {
@@ -299,7 +296,7 @@
 
   // ---------- rotas ----------
   const ROUTES = [
-    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['projetos', 'Projetos', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['clientes', 'Clientes', 'users'],
+    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['projetos', 'Projetos', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['solicitantes', 'Solicitantes', 'users'],
     ['calendario', 'Calendário', 'calendar', 'Tempo'], ['tempo', 'Controle de tempo', 'clock'], ['pausas', 'Pausas', 'coffee'],
     ['referencias', 'Referências criativas', 'image', 'Criação'], ['anotacoes', 'Anotações', 'note'],
     ['relatorios', 'Relatórios', 'chart', 'Análise'], ['metas', 'Metas', 'target'], ['insights', 'Insights e sugestões', 'bulb'],
@@ -317,8 +314,8 @@
     try { main.innerHTML = U.html(view.render(id)); }
     catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
     if (view.mount) view.mount(main, id);
-    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'projeto' ? 'projetos' : r === 'cliente' ? 'clientes' : r)));
-    const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'projeto' ? 'Projeto' : r === 'cliente' ? 'Cliente' : 'Dashboard'])[1];
+    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'projeto' ? 'projetos' : r === 'solicitante' ? 'solicitantes' : r)));
+    const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'projeto' ? 'Projeto' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
     document.title = title + ' · Prancheta';
     renderDemoBanner(); tick();
     if (lastRoute !== location.hash) { window.scrollTo(0, 0); document.getElementById('main').focus({ preventScroll: true }); } else window.scrollTo(0, keep);
@@ -413,7 +410,7 @@
     const out = [];
     S.projects.forEach(p => has(p.name, p.description, p.category, p.notes) && out.push(['Projeto', p.name, 'go:projeto:' + p.id]));
     S.tasks.forEach(t => has(t.title, t.description, t.notes, (t.checklist || []).map(c => c.text)) && out.push(['Tarefa', t.title, 'edit:tasks:' + t.id]));
-    S.clients.forEach(c => has(c.name, c.contactName, c.email, c.notes) && out.push(['Cliente', c.name, 'go:cliente:' + c.id]));
+    S.clients.forEach(c => has(c.name, c.contactName, c.email, c.notes) && out.push(['Solicitante', c.name, 'go:solicitante:' + c.id]));
     S.notes.forEach(n => has(n.title, n.body, n.tags) && out.push(['Anotação', n.title, 'edit:notes:' + n.id]));
     S.refs.forEach(r => has(r.name, r.description, r.tags, r.typography) && out.push(['Referência', r.name, 'edit:refs:' + r.id]));
     S.revisions.forEach(r => has(r.version, r.feedback, r.changes) && out.push(['Revisão', (St.get('projects', r.projectId) || {}).name + ' · ' + r.version, 'edit:revisions:' + r.id]));
@@ -465,12 +462,12 @@
   async function loadDemo() {
     if (S.projects.some(p => p.demo)) return U.toast('Os dados de demonstração já estão carregados.');
     const t = now(), d = n => M.isoDate(M.addDays(t, n)), id = () => M.uid(), base = { demo: true, created: t, updated: t, history: [] };
-    const c1 = { ...base, id: id(), name: '[Demo] Café Aurora', contactName: 'Marina', email: 'marina@exemplo.com', status: 'active' };
-    const c2 = { ...base, id: id(), name: '[Demo] Studio Ipê', status: 'prospect' };
-    const P = (name, clientId, category, status, priority, start, due, estimateH, value, extra = {}) => ({ ...base, id: id(), name, clientId, category, status, priority, start, due, estimateH, value, stages: [], links: [], statusSince: t - 6 * M.DAY, ...extra });
-    const p1 = P('[Demo] Identidade visual Aurora', c1.id, 'Identidade visual', 'doing', 'high', d(-12), d(3), 30, 4500);
-    const p2 = P('[Demo] Posts de novembro', c1.id, 'Posts para redes sociais', 'approval', 'medium', d(-5), d(8), 12, 1200);
-    const p3 = P('[Demo] Logo Studio Ipê', c2.id, 'Criação de logotipo', 'done', 'medium', d(-30), d(-10), 10, 1800, { completedAt: M.addDays(t, -11) });
+    const c1 = { ...base, id: id(), name: '[Demo] Marketing', contactName: 'Marina', email: 'marina@exemplo.com' };
+    const c2 = { ...base, id: id(), name: '[Demo] RH' };
+    const P = (name, clientId, category, status, priority, start, due, estimateH, extra = {}) => ({ ...base, id: id(), name, clientId, category, status, priority, start, due, estimateH, stages: [], links: [], statusSince: t - 6 * M.DAY, ...extra });
+    const p1 = P('[Demo] Campanha de Black Friday', c1.id, 'Banners e anúncios', 'doing', 'high', d(-12), d(3), 30);
+    const p2 = P('[Demo] Posts de novembro', c1.id, 'Posts para redes sociais', 'approval', 'medium', d(-5), d(8), 12);
+    const p3 = P('[Demo] Manual de integração', c2.id, 'Apresentações', 'done', 'medium', d(-30), d(-10), 10, { completedAt: M.addDays(t, -11) });
     const T = (title, projectId, status, priority, due, estimateH, extra = {}) => ({ ...base, id: id(), title, projectId, clientId: projectId === p3.id ? c2.id : c1.id, status, priority, due, estimateH, checklist: [], completedAt: status === 'done' ? M.addDays(t, -2) : null, ...extra });
     const tasks = [
       T('[Demo] Moodboard', p1.id, 'done', 'medium', d(-8), 3), T('[Demo] Esboços do símbolo', p1.id, 'done', 'high', d(-4), 5),
@@ -486,7 +483,7 @@
     const list = [['clients', c1], ['clients', c2], ['projects', p1], ['projects', p2], ['projects', p3], ...tasks.map(x => ['tasks', x]), ...sess.map(x => ['sessions', x]), ...wds.map(x => ['workdays', x]), ...brs.map(x => ['breaks', x]),
       ['events', { ...base, id: id(), title: '[Demo] Apresentação da marca', type: 'meeting', date: d(2), time: '15:00', endTime: '16:00', projectId: p1.id }],
       ['revisions', { ...base, id: id(), projectId: p2.id, version: 'v1', sentAt: d(-6), status: 'waiting', feedback: '', changes: '' }],
-      ['notes', { ...base, id: id(), title: '[Demo] Briefing Aurora', kind: 'Briefing', body: 'Cafeteria de bairro, público jovem, tons quentes.', tags: ['aurora'], projectId: p1.id, clientId: c1.id, pinned: true }],
+      ['notes', { ...base, id: id(), title: '[Demo] Briefing Black Friday', kind: 'Briefing', body: 'Peças para site, e-mail e redes. Tom urgente, cores da marca.', tags: ['black-friday'], projectId: p1.id, clientId: c1.id, pinned: true }],
       ['refs', { ...base, id: id(), name: '[Demo] Paleta outono', category: 'Cores', tags: ['quente'], palette: ['#7a3e1d', '#d98e48', '#f3e3c3'], typography: 'Fraunces + Inter', projectId: p1.id }],
       ['goals', { ...base, id: id(), title: '[Demo] 30 h por semana', metric: 'hours_week', target: 30 }]];
     try { await St.bulkPut(list); U.toast('Dados de demonstração carregados. Remova quando quiser pelo aviso no topo.', 'good', 6000); } catch (e) { U.fail(e); }
@@ -539,7 +536,7 @@
     nav.innerHTML = U.html(ROUTES.map(([r, t, ic, group]) => h`${group ? h`<p class="nav-group">${group}</p>` : ''}<a href="#${r}" data-r="${r}">${icon(ic)}<span>${t}</span></a>`));
     const d = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
     document.getElementById('today').textContent = d[0].toUpperCase() + d.slice(1);
-    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Projeto', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Cliente', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
+    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Projeto', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
     document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });

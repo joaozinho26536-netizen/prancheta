@@ -44,8 +44,8 @@
         <footer>${U.badge(n.kind || 'Nota', 'muted')}${(n.tags || []).map(t => h`<button class="tag" data-act="note-tag:${t}">#${t}</button>`)}<span class="grow"></span><span class="small muted">${U.fmtDate(M.isoDate(n.updated))}</span></footer>
         ${n.projectId || n.clientId ? h`<p class="small muted">${[H.pname(n.projectId), H.cname(n.clientId)].filter(Boolean).join(' · ')}</p>` : ''}</article>`;
       return h`${App.page('Anotações', 'Ideias, briefings, feedbacks e decisões', h`<button class="btn primary" data-act="new:notes">${icon('plus')} Nova anotação</button>`)}
-      ${S.notes.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar em títulos, conteúdo e etiquetas" aria-label="Buscar anotações">${H.sel('kind', S.settings.noteKinds.map(k => [k, k]), v.kind, 'Todos os tipos')}${H.sel('tag', allTags(S.notes).map(t => [t, t]), v.tag, 'Todas as etiquetas')}${H.sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${H.sel('client', App.opt.clients(), v.client, 'Todos os clientes')}</div>` : ''}
-      ${!S.notes.length ? U.empty('Nenhuma anotação', 'Registre ideias, briefings e feedbacks. Elas podem ficar soltas ou ligadas a um projeto ou cliente.', h`<button class="btn primary" data-act="new:notes">${icon('plus')} Nova anotação</button>`)
+      ${S.notes.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar em títulos, conteúdo e etiquetas" aria-label="Buscar anotações">${H.sel('kind', S.settings.noteKinds.map(k => [k, k]), v.kind, 'Todos os tipos')}${H.sel('tag', allTags(S.notes).map(t => [t, t]), v.tag, 'Todas as etiquetas')}${H.sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${H.sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}</div>` : ''}
+      ${!S.notes.length ? U.empty('Nenhuma anotação', 'Registre ideias, briefings e feedbacks. Elas podem ficar soltas ou ligadas a um projeto ou solicitante.', h`<button class="btn primary" data-act="new:notes">${icon('plus')} Nova anotação</button>`)
         : !list.length ? U.empty('Nada encontrado', 'Ajuste a busca ou os filtros.') : h`<div class="cards notes">${list.map(card)}</div>`}`;
     },
     async act(act, [a]) {
@@ -87,7 +87,7 @@
       return h`${App.page('Relatórios', `${U.fmtDate(M.isoDate(from))} a ${U.fmtDate(M.isoDate(to - 1))}`, h`<button class="btn" data-act="csv:sessions">${icon('download')} Sessões (CSV)</button><button class="btn" data-act="csv:projects">${icon('download')} Por projeto (CSV)</button><button class="btn" data-act="csv:tasks">${icon('download')} Tarefas (CSV)</button><button class="btn ghost" data-act="print">${icon('print')} Imprimir</button>`)}
       <div class="toolbar no-print"><select data-f="period" aria-label="Período">${PERIODS.map(([a, b]) => h`<option value="${a}"${a === v.period ? U.raw(' selected') : ''}>${b}</option>`)}</select>
         ${v.period === 'custom' ? h`<label class="inline">De <input type="date" data-f="from" value="${v.from || today()}"></label><label class="inline">até <input type="date" data-f="to" value="${v.to || today()}"></label>` : ''}
-        ${H.sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${H.sel('client', App.opt.clients(), v.client, 'Todos os clientes')}${H.sel('category', S.settings.categories.map(c => [c, c]), v.category, 'Todas as categorias')}</div>
+        ${H.sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${H.sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}${H.sel('category', S.settings.categories.map(c => [c, c]), v.category, 'Todas as categorias')}</div>
       <section class="panel"><header class="panel-head"><h2>Indicadores objetivos</h2><span class="muted">contagens e horas registradas</span></header>
         <div class="stats-panel inner">
           ${stat('Horas trabalhadas', U.fmtDur(sum.workedMs), 'pausas descontadas')}
@@ -125,13 +125,13 @@
       if (act !== 'csv') return;
       const stamp = `${M.isoDate(from)}_a_${M.isoDate(to - 1)}`;
       if (a === 'sessions') {
-        const rows = [['Data', 'Início', 'Fim', 'Minutos trabalhados', 'Projeto', 'Categoria', 'Cliente', 'Tarefa', 'Descrição', 'Manual']];
+        const rows = [['Data', 'Início', 'Fim', 'Minutos trabalhados', 'Projeto', 'Categoria', 'Solicitante', 'Tarefa', 'Descrição', 'Manual']];
         S.sessions.filter(s => s.start < to && (s.end ?? t) >= from && (!v.project || s.projectId === v.project)).sort((x, y) => x.start - y.start).forEach(s => { const p = St.get('projects', s.projectId) || {}; if ((v.client && p.clientId !== v.client) || (v.category && p.category !== v.category)) return; rows.push([M.isoDate(s.start), U.fmtTime(s.start), s.end ? U.fmtTime(s.end) : '', Math.round(M.total(M.workedIntervals(s, S.breaks, t).map(iv => M.clip(iv, from, to)).filter(Boolean)) / M.MIN), p.name || '', p.category || '', H.cname(p.clientId) || '', (St.get('tasks', s.taskId) || {}).title || '', s.note || '', s.manual ? 'sim' : '']); });
         U.downloadFile(`prancheta-sessoes_${stamp}.csv`, U.csv(rows), 'text/csv');
       }
       if (a === 'projects') {
         const r = M.report(S, { from, to, projectId: v.project, clientId: v.client, category: v.category }, t);
-        const rows = [['Projeto', 'Cliente', 'Categoria', 'Status', 'Prazo', 'Horas no período', 'Horas totais', 'Horas estimadas', 'Progresso %']];
+        const rows = [['Projeto', 'Solicitante', 'Categoria', 'Status', 'Prazo', 'Horas no período', 'Horas totais', 'Horas estimadas', 'Progresso %']];
         S.projects.filter(p => (!v.project || p.id === v.project) && (!v.client || p.clientId === v.client) && (!v.category || p.category === v.category)).forEach(p => rows.push([p.name, H.cname(p.clientId) || '', p.category || '', U.projectStatusName(p.status), p.due || '', M.f1((r.sum.byProject[p.id] || 0) / M.HOUR), M.f1(M.spentMs(S, 'projectId', p.id, t) / M.HOUR), p.estimateH || '', Math.round(M.projectProgress(S.settings, p, S.tasks) * 100)]));
         U.downloadFile(`prancheta-projetos_${stamp}.csv`, U.csv(rows), 'text/csv');
       }
@@ -182,7 +182,7 @@
   };
 
   // ================= CONFIGURAÇÕES =================
-  const KINDS = [['open', 'Aberto (ainda não começou)'], ['active', 'Em execução'], ['waiting', 'Esperando o cliente'], ['done', 'Concluído'], ['cancelled', 'Cancelado']];
+  const KINDS = [['open', 'Aberto (ainda não começou)'], ['active', 'Em execução'], ['waiting', 'Esperando o solicitante'], ['done', 'Concluído'], ['cancelled', 'Cancelado']];
   Views.configuracoes = {
     render() {
       const s = S.settings;
@@ -226,7 +226,7 @@
           <div class="field"><label for="s-df">Formato de data</label><select id="s-df" name="dateFormat"><option value="dd/mm/aaaa"${s.dateFormat === 'dd/mm/aaaa' ? U.raw(' selected') : ''}>31/10/2026</option><option value="aaaa-mm-dd"${s.dateFormat === 'aaaa-mm-dd' ? U.raw(' selected') : ''}>2026-10-31</option></select><small class="hint">Horários sempre em 24 h.</small></div>
           <div class="field"><label for="s-ac">Cor de destaque</label><input id="s-ac" type="color" name="accent" value="${s.accent}"></div>
           <div class="field"><label for="s-mt">Alerta de dia cheio (tarefas por dia)</label><input id="s-mt" type="number" min="1" name="maxTasksPerDay" value="${s.maxTasksPerDay}"></div>
-          <div class="field"><label for="s-sd">Alerta de espera do cliente (dias)</label><input id="s-sd" type="number" min="1" name="staleDays" value="${s.staleDays}"></div>
+          <div class="field"><label for="s-sd">Alerta de espera do solicitante (dias)</label><input id="s-sd" type="number" min="1" name="staleDays" value="${s.staleDays}"></div>
           <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
         </div><footer><button class="btn primary">Salvar</button></footer></form>
 
@@ -332,7 +332,7 @@
     } catch (e) { U.fail(e); }
   }
   async function wipe() {
-    const d = U.dialog(h`<form method="dialog" class="ask"><h2>Apagar todos os dados?</h2><p>Projetos, tarefas, clientes, horários, anotações e configurações serão apagados deste navegador. Exporte um backup antes se quiser guardar algo.</p><label for="wipe-confirm">Digite <strong>APAGAR</strong> para confirmar</label><input id="wipe-confirm" autocomplete="off"><div class="actions"><button value="no" class="btn">Cancelar</button><button value="yes" class="btn danger">Apagar tudo</button></div></form>`, 'small');
+    const d = U.dialog(h`<form method="dialog" class="ask"><h2>Apagar todos os dados?</h2><p>Projetos, tarefas, solicitantes, horários, anotações e configurações serão apagados deste navegador. Exporte um backup antes se quiser guardar algo.</p><label for="wipe-confirm">Digite <strong>APAGAR</strong> para confirmar</label><input id="wipe-confirm" autocomplete="off"><div class="actions"><button value="no" class="btn">Cancelar</button><button value="yes" class="btn danger">Apagar tudo</button></div></form>`, 'small');
     d.addEventListener('close', async () => {
       if (d.returnValue !== 'yes') return;
       if (d.querySelector('#wipe-confirm').value.trim() !== 'APAGAR') return U.toast('Confirmação incorreta: nada foi apagado.', 'bad');

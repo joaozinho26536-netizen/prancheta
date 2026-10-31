@@ -130,3 +130,16 @@ test('links do Spotify viram player embutido', () => {
   assert.strictEqual(M.spotifyEmbed('https://open.spotify.com/user/abcdefghijkl'), null);
   assert.strictEqual(M.spotifyEmbed('qualquer coisa'), null);
 });
+
+test('saldo da jornada (banco de horas): expediente − pausas − jornada prevista', () => {
+  // jornada padrão: 09–18 com 60 min de almoço = 8 h, seg a sex. T0 é segunda; T0+5 é sábado.
+  const st = base({
+    workdays: [{ id: 'a', start: at(0, 8), end: at(0, 18) }, { id: 'b', start: at(1, 9), end: at(1, 16) }, { id: 'c', start: at(5, 9), end: at(5, 11) }],
+    breaks: [{ id: 'x', start: at(0, 12), end: at(0, 13) }, { id: 'y', start: at(1, 12), end: at(1, 13) }],
+  });
+  const r = M.jornadaSaldo(st, at(0, 0), at(7, 0), at(7, 0));
+  assert.strictEqual(r.days[M.isoDate(at(0, 12))].saldo, H);       // 10 h − 1 h − 8 h = +1 h
+  assert.strictEqual(r.days[M.isoDate(at(1, 12))].saldo, -2 * H);   // 7 h − 1 h − 8 h = −2 h
+  assert.strictEqual(r.days[M.isoDate(at(5, 12))].saldo, 2 * H);    // sábado: tudo é extra
+  assert.strictEqual(r.total, H);
+});
