@@ -43,9 +43,9 @@
         <p class="small clamp pre">${n.body || ''}</p>
         <footer>${U.badge(n.kind || 'Nota', 'muted')}${(n.tags || []).map(t => h`<button class="tag" data-act="note-tag:${t}">#${t}</button>`)}<span class="grow"></span><span class="small muted">${U.fmtDate(M.isoDate(n.updated))}</span></footer>
         ${n.projectId || n.clientId ? h`<p class="small muted">${[H.pname(n.projectId), H.cname(n.clientId)].filter(Boolean).join(' · ')}</p>` : ''}</article>`;
-      return h`${App.page('Anotações', 'Ideias, briefings, feedbacks e decisões', h`<button class="btn primary" data-act="new:notes">${icon('plus')} Nova anotação</button>`)}
+      return h`${App.page('Anotações', 'Ideias, briefings, feedbacks e decisões', h`<button class="btn ghost" data-act="new:notes">Formulário completo</button>`)}${App.quick('notes', v.project ? { projectId: v.project } : {})}
       ${S.notes.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar em títulos, conteúdo e etiquetas" aria-label="Buscar anotações">${H.sel('kind', S.settings.noteKinds.map(k => [k, k]), v.kind, 'Todos os tipos')}${H.sel('tag', allTags(S.notes).map(t => [t, t]), v.tag, 'Todas as etiquetas')}${H.sel('project', App.opt.projects(), v.project, 'Todas as demandas')}${H.sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}</div>` : ''}
-      ${!S.notes.length ? U.empty('Nenhuma anotação', 'Registre ideias, briefings e feedbacks. Elas podem ficar soltas ou ligadas a uma demanda ou solicitante.', h`<button class="btn primary" data-act="new:notes">${icon('plus')} Nova anotação</button>`)
+      ${!S.notes.length ? U.empty('Nenhuma anotação', 'Escreva no campo acima. Depois, clique na anotação para ligar a uma demanda, pôr etiquetas ou fixar.')
         : !list.length ? U.empty('Nada encontrado', 'Ajuste a busca ou os filtros.') : h`<div class="cards notes">${list.map(card)}</div>`}`;
     },
     async act(act, [a]) {

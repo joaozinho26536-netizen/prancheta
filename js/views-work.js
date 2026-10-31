@@ -131,7 +131,7 @@
         <label class="check small"><input type="checkbox" data-f="closed"${v.closed ? U.raw(' checked') : ''}> Mostrar concluídas e canceladas</label>
         <span class="grow"></span>${seg('projects', [['cards', 'Cards', 'grid'], ['list', 'Lista', 'list'], ['kanban', 'Kanban', 'columns']], v.mode)}</div>`;
       let body;
-      if (!S.projects.length) body = U.empty('Nenhuma demanda ainda', 'Cadastre sua primeira demanda para acompanhar prazos, tarefas e horas.', h`<button class="btn primary" data-act="new:projects">${icon('plus')} Nova demanda</button>`);
+      if (!S.projects.length) body = U.empty('Nenhuma demanda ainda', 'Escreva o nome da primeira demanda no campo acima e aperte Enter.');
       else if (v.mode === 'kanban') {
         const all = filteredProjects({ ...v, closed: true, status: '' });
         body = h`<div class="kanban">${S.settings.projectStatuses.filter(s => v.closed || s.kind !== 'cancelled').map(s => { const col = all.filter(p => p.status === s.id); return h`<section class="kcol" data-drop="${s.id}" aria-label="${s.name}"><header><h3>${s.name}</h3><span class="badge muted">${col.length}</span></header>${col.map(p => projectCard(p, true))}</section>`; })}</div><p class="muted small">Arraste os cards entre as colunas para mudar o status.</p>`;
@@ -139,7 +139,7 @@
       else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Demanda</th><th>Solicitante</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
           ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:demanda:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + p.estimateH + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
       else body = h`<div class="cards">${list.map(p => projectCard(p))}</div>`;
-      return h`${App.page('Demandas', `${list.length} de ${S.projects.length} demanda(s)`, h`<button class="btn primary" data-act="new:projects">${icon('plus')} Nova demanda</button>`)}${S.projects.length ? tools : ''}${body}`;
+      return h`${App.page('Demandas', `${list.length} de ${S.projects.length} demanda(s)`, h`<button class="btn ghost" data-act="new:projects">Formulário completo</button>`)}${App.quick('projects', v.client ? { clientId: v.client } : {})}${S.projects.length ? tools : ''}${body}`;
     },
     mount(root) { kanbanDnD(root, async (id, status) => { const p = St.get('projects', id); if (!p || p.status === status) return; const rec = { ...p, status, statusSince: now() }; rec.completedAt = M.statusKind(S.settings, status) === 'done' ? p.completedAt || now() : null; try { await St.save('projects', rec, { verb: 'movida para ' + U.projectStatusName(status) }); } catch (e) { U.fail(e); } }); },
     act(act, [k, val]) { if (act === 'mode') { const v = vs('projects', PDEF); v.mode = val; savePref('projects', { mode: val }); App.render(); } },
@@ -214,7 +214,8 @@
       </section>
       <div class="grid-2 wide-left">
         <div class="stack-lg">
-          <section class="panel"><header class="panel-head"><h2>Tarefas</h2><button class="btn small" data-act="new:tasks" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>${icon('plus')} Nova tarefa</button></header>
+          <section class="panel"><header class="panel-head"><h2>Tarefas</h2><button class="btn small ghost" data-act="new:tasks" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>Formulário completo</button></header>
+            ${App.quick('tasks', { projectId: id })}
             ${tasks.length ? h`<ul class="task-list">${tasks.map(x => taskRow(x))}</ul>` : U.empty('Sem tarefas', 'Divida a demanda em tarefas para acompanhar o progresso.')}</section>
           <section class="panel"><header class="panel-head"><h2>Revisões e aprovações</h2><button class="btn small" data-act="new:revisions" data-defaults='${JSON.stringify({ projectId: id })}'>${icon('plus')} Registrar versão</button></header>
             ${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r))}</ul>` : U.empty('Nenhuma versão enviada', 'Registre cada versão enviada ao solicitante e o retorno recebido.')}</section>
@@ -267,7 +268,7 @@
         ${v.mode === 'list' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['project', 'Ordenar por demanda'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
         <span class="grow"></span>${seg('tasks', [['list', 'Lista', 'list'], ['kanban', 'Kanban', 'columns'], ['agenda', 'Agenda', 'calendar']], v.mode)}</div>`;
       let body;
-      if (!S.tasks.length) body = U.empty('Nenhuma tarefa ainda', 'Crie tarefas ligadas a demandas ou independentes.', h`<button class="btn primary" data-act="new:tasks">${icon('plus')} Nova tarefa</button>`);
+      if (!S.tasks.length) body = U.empty('Nenhuma tarefa ainda', 'Escreva a primeira no campo acima e aperte Enter.');
       else if (v.mode === 'kanban') {
         const all = filteredTasks({ ...v, status: 'all' });
         body = h`<div class="kanban">${U.TASK_STATUSES.map(([k, l]) => { const col = all.filter(t => t.status === k).slice(0, k === 'done' ? 30 : 200); return h`<section class="kcol" data-drop="${k}" aria-label="${l}"><header><h3>${l}</h3><span class="badge muted">${all.filter(t => t.status === k).length}</span></header>${col.map(t => h`<article class="card ${M.taskOverdue(t, td) ? 'is-late' : ''}" draggable="true" data-id="${t.id}"><header><button class="title-btn" data-act="edit:tasks:${t.id}">${t.title}</button></header><p class="small muted">${pname(t.projectId) || 'Sem demanda'}</p><footer>${U.priorityBadge(t.priority)}<span class="small">${t.due ? dueText(t.due, t.status === 'done') : ''}</span></footer></article>`)}</section>`; })}</div><p class="muted small">Arraste para mudar o status. A coluna Concluída mostra as 30 mais recentes.</p>`;
@@ -277,7 +278,7 @@
         for (const t of list) { const d = t.date || t.due; const k = !d ? '~' : (t.status !== 'done' && d < td) ? '!' : d; (groups[k] ||= []).push(t); }
         body = Object.keys(groups).sort().map(k => h`<section class="panel"><header class="panel-head"><h2>${k === '!' ? 'Atrasadas' : k === '~' ? 'Sem data' : U.fmtDate(k) + ' · ' + U.relDay(k)}</h2><span class="muted">${groups[k].length}</span></header><ul class="task-list">${groups[k].map(t => taskRow(t, { project: true }))}</ul></section>`);
       } else body = h`<section class="panel flush"><ul class="task-list">${list.map(t => taskRow(t, { project: true }))}</ul></section>`;
-      return h`${App.page('Tarefas', `${list.length} tarefa(s) neste filtro · ${S.tasks.filter(t => M.taskOverdue(t, td)).length} atrasada(s)`, h`<button class="btn primary" data-act="new:tasks">${icon('plus')} Nova tarefa</button>`)}${S.tasks.length ? tools : ''}${body}`;
+      return h`${App.page('Tarefas', `${list.length} tarefa(s) neste filtro · ${S.tasks.filter(t => M.taskOverdue(t, td)).length} atrasada(s)`, h`<button class="btn ghost" data-act="new:tasks">Formulário completo</button>`)}${App.quick('tasks', v.project && v.project !== '-' ? { projectId: v.project } : {})}${S.tasks.length ? tools : ''}${body}`;
     },
     mount(root) { kanbanDnD(root, async (id, status) => { const t = St.get('tasks', id); if (!t || t.status === status) return; try { await St.save('tasks', { ...t, status, completedAt: status === 'done' ? t.completedAt || now() : null }, { verb: status === 'done' ? 'concluída' : 'movida para ' + U.label(U.TASK_STATUSES, status) }); } catch (e) { U.fail(e); } }); },
     act(act, [k, val]) { if (act === 'mode') { const v = vs('tasks', TDEF); v.mode = val; savePref('tasks', { mode: val }); App.render(); } },

@@ -179,6 +179,31 @@
     try { await St.save(type, { ...r, [key]: list }, { quiet: true }); } catch (e) { U.fail(e); }
   };
 
+  // ---------- escrita rápida: digitar e apertar Enter, sem formulário ----------
+  const QUICK_HINT = { tasks: 'Nova tarefa: escreva e aperte Enter', projects: 'Nova demanda: escreva e aperte Enter', notes: 'Escreva uma anotação. A primeira linha vira o título.' };
+  App.quick = (type, extra = {}) => {
+    const attrs = h` data-quick="${type}" data-extra='${JSON.stringify(extra)}' placeholder="${QUICK_HINT[type]}" aria-label="${QUICK_HINT[type]}"`;
+    return type === 'notes'
+      ? h`<form class="quick note-quick"><textarea rows="3"${attrs}></textarea><div class="quick-foot"><span class="small muted"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> salva</span><button class="btn primary small">Salvar anotação</button></div></form>`
+      : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">Enter cria · clique no item para detalhar</span></form>`;
+  };
+  document.addEventListener('submit', async e => {
+    const f = e.target.closest('form.quick'); if (!f) return;
+    e.preventDefault();
+    const el = f.querySelector('[data-quick]'), text = el.value.trim();
+    if (!text || f.dataset.busy) return;
+    f.dataset.busy = '1';
+    const type = el.dataset.quick, F = FORMS[type];
+    const rec = { ...F.defaults(), ...JSON.parse(el.dataset.extra || '{}') };
+    if (type === 'notes') { const [first, ...rest] = text.split('\n'); rec.title = first.trim().slice(0, 120); rec.body = first.trim().length > 120 ? text : rest.join('\n').trim(); }
+    else rec[type === 'projects' ? 'name' : 'title'] = text;
+    if (F.before) F.before(rec, null);
+    try { await St.save(type, rec); el.value = ''; } catch (err) { U.fail(err); } finally { delete f.dataset.busy; }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('textarea[data-quick]')) { e.preventDefault(); e.target.form.requestSubmit(); }
+  });
+
   // ---------- tempo: expediente, sessões e pausas ----------
   const active = {
     workday: () => S.workdays.find(w => !w.end),
@@ -297,10 +322,10 @@
   // ---------- rotas ----------
   // [rota, título, ícone, onde aparece: menu em pílula no topo ou trilho de ícones, rótulo curto da pílula]
   const ROUTES = [
-    ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'],
+    ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'], ['anotacoes', 'Anotações', 'note', 'top'],
     ['calendario', 'Calendário', 'calendar', 'top'], ['tempo', 'Controle de tempo', 'clock', 'top', 'Tempo'], ['relatorios', 'Relatórios', 'chart', 'top'],
     ['revisoes', 'Revisões', 'rotate', 'rail'], ['solicitantes', 'Solicitantes', 'users', 'rail'], ['pausas', 'Pausas', 'coffee', 'rail'],
-    ['referencias', 'Referências criativas', 'image', 'rail'], ['anotacoes', 'Anotações', 'note', 'rail'],
+    ['referencias', 'Referências criativas', 'image', 'rail'],
     ['metas', 'Metas', 'target', 'rail'], ['insights', 'Insights e sugestões', 'bulb', 'rail'],
   ];
   App.ROUTES = ROUTES;
@@ -313,6 +338,7 @@
     const view = Views[r] || Views.dashboard;
     const main = document.getElementById('main');
     const keep = lastRoute === location.hash ? window.scrollY : 0;
+    const typing = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.quick : null;
     try { main.innerHTML = U.html(view.render(id)); }
     catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
     if (view.mount) view.mount(main, id);
@@ -322,7 +348,9 @@
     const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'demanda' ? 'Demanda' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
     document.title = title + ' · Prancheta';
     renderDemoBanner(); tick();
-    if (lastRoute !== location.hash) { window.scrollTo(0, 0); document.getElementById('main').focus({ preventScroll: true }); } else window.scrollTo(0, keep);
+    // páginas com escrita rápida já abrem com o cursor no campo; depois de salvar, ele continua lá
+    const quick = main.querySelector(typing && lastRoute === location.hash ? `[data-quick="${typing}"]` : '[data-quick]');
+    if (lastRoute !== location.hash) { window.scrollTo(0, 0); (quick || main).focus({ preventScroll: true }); } else { window.scrollTo(0, keep); if (typing && quick) quick.focus({ preventScroll: true }); }
     lastRoute = location.hash;
   }
   App.render = render;

@@ -347,6 +347,20 @@ dialog::backdrop { background: rgba(20, 26, 38, .35); }
 .stack { display: flex; flex-direction: column; gap: 8px; }
 .pad { padding: 8px; }
 
+/* escrita rápida */
+.quick { position: relative; display: flex; align-items: center; }
+.quick input { flex: 1; padding: 13px 16px 13px 44px; border-radius: 999px; font-size: 15px; background: rgba(20, 15, 16, .45); border: 1px solid var(--line-2); }
+.quick-plus { position: absolute; left: 16px; color: var(--muted); display: grid; }
+.quick-tip { position: absolute; right: 18px; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.quick input:focus + .quick-tip { opacity: 1; }
+.panel .quick { margin-bottom: 10px; }
+.panel .quick input { padding: 9px 14px 9px 40px; font-size: 14px; }
+.note-quick { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; border-radius: var(--radius); background: rgba(20, 15, 16, .45); border: 1px solid var(--line-2); }
+.note-quick textarea { border: 0; background: transparent; padding: 4px; font-size: 15px; resize: vertical; min-height: 72px; }
+.note-quick textarea:focus { outline: none; }
+.note-quick:focus-within { border-color: var(--accent); }
+.quick-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
 /* música */
 .music { position: fixed; right: 20px; top: 64px; z-index: 40; width: min(380px, calc(100vw - 40px)); max-height: calc(100vh - 84px); overflow-y: auto; background: var(--solid); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .music > header { display: flex; align-items: center; gap: 8px; }

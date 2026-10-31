@@ -146,7 +146,8 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const allCount = await page.locator('.task-row').count();
   await page.selectOption('[data-f="status"]', 'done');
   const doneCount = await page.locator('.task-row').count();
-  await page.locator('body').press('/');
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press('/');
   await page.fill('#search', 'esboço');
   const sr = await text('#search-results');
   await page.keyboard.press('Escape');
@@ -246,6 +247,26 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await page.reload(); await page.waitForSelector('#nav a');
   const fav = await page.locator('#music .music-saved').innerText();
   check('Música do Spotify (validação, player contínuo, favoritos salvos)', /Não reconheci/.test(musicErr) && sameIframe && /embed\/playlist\/37i9dQZF1DXcBWIGoYBM5M/.test(src) && /Foco/.test(fav), `${musicErr} / ${sameIframe} / ${src} / ${fav}`);
+
+  // escrita rápida: digitar e Enter cria, o cursor continua no campo
+  await go('tarefas');
+  const autofocus = await page.evaluate(() => document.activeElement.dataset.quick);
+  await page.keyboard.type('Revisar arte do banner'); await page.keyboard.press('Enter'); await sleep(150);
+  await page.keyboard.type('Exportar PDF final'); await page.keyboard.press('Enter'); await sleep(150);
+  const quickTasks = await page.evaluate(() => Store.S.tasks.filter(t => ['Revisar arte do banner', 'Exportar PDF final'].includes(t.title)).length);
+  const stillFocused = await page.evaluate(() => document.activeElement.dataset.quick === 'tasks' && document.activeElement.value === '');
+  await go('anotacoes');
+  await page.keyboard.type('Ideia para o post'); await page.keyboard.press('Shift+Enter'); await page.keyboard.type('Usar fotos da equipe');
+  await page.keyboard.press('Control+Enter'); await sleep(150);
+  const note = await page.evaluate(() => Store.S.notes.find(n => n.title === 'Ideia para o post'));
+  await go('demandas');
+  await page.keyboard.type('Convite da festa de fim de ano'); await page.keyboard.press('Enter'); await sleep(150);
+  const dem = await page.evaluate(() => Store.S.projects.find(p => p.name === 'Convite da festa de fim de ano'));
+  await go('demanda/' + dem.id);
+  await page.fill('[data-quick="tasks"]', 'Primeira versão'); await page.press('[data-quick="tasks"]', 'Enter'); await sleep(150);
+  const linked = await page.evaluate(id => Store.S.tasks.some(t => t.title === 'Primeira versão' && t.projectId === id), dem.id);
+  check('Escrita rápida em tarefas, anotações e demandas (sem formulário)', autofocus === 'tasks' && quickTasks === 2 && stillFocused && note && note.body === 'Usar fotos da equipe' && dem && dem.status && linked,
+    JSON.stringify({ autofocus, quickTasks, stillFocused, note: note && note.body, dem: !!dem, linked }));
 
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
