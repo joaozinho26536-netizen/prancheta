@@ -41,7 +41,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const confirmYes = () => page.click(`${dlg} button[value=yes]`);
 
   // 15. navegação: todas as páginas abrem sem erro
-  const routes = ['dashboard', 'demandas', 'tarefas', 'revisoes', 'solicitantes', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'relatorios', 'metas', 'insights', 'configuracoes'];
+  const routes = ['dashboard', 'demandas', 'tarefas', 'revisoes', 'solicitantes', 'fluxos', 'arquivos', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'cursos', 'biblioteca', 'pratica', 'relatorios', 'metas', 'insights', 'configuracoes'];
   for (const r of routes) await go(r);
   check('Navegação por todas as páginas (vazio)', errors.length === 0, errors.join(' | '));
 
@@ -419,6 +419,18 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   require('child_process').execSync('sh ' + shFile, { cwd: pastaTmp });
   const criadas = fs.readdirSync(path.join(pastaTmp, 'Marketing-Campanha-de-Natal')).sort();
   check('Arquivos (nome padronizado e script de pastas que funciona)', nomeArq === 'Marketing_Campanha-de-Natal_Post-feed_V02_2026-11-02.psd' && criadas.length === 7 && criadas[0] === '01_Briefing', nomeArq + ' / ' + criadas.join(','));
+
+  // backup v2: exporta com os registros novos e, ao mesclar o mesmo arquivo, nada duplica e as ligações continuam
+  await go('configuracoes');
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="export"]')]);
+  const file2 = path.join(os.tmpdir(), 'prancheta-e2e-backup-v2.json'); await dl2.saveAs(file2);
+  const bk2 = JSON.parse(fs.readFileSync(file2, 'utf8'));
+  const antes = await page.evaluate(() => ['courses', 'resources', 'exercises', 'workflows', 'runs', 'tasks'].map(k => Store.S[k].length));
+  await page.setInputFiles('#import-file', file2); await page.check('[name=import-mode][value=merge]');
+  await page.click('[data-act="import"]'); await page.click('dialog.small[open] button[value=yes]'); await sleep(300);
+  const depoisV2 = await page.evaluate(() => ({ n: ['courses', 'resources', 'exercises', 'workflows', 'runs', 'tasks'].map(k => Store.S[k].length), runsOk: Store.S.runs.every(r => Store.S.projects.some(p => p.id === r.projectId)), stepTasksOk: Store.S.tasks.filter(t => t.runId).every(t => Store.S.runs.some(r => r.id === t.runId)) }));
+  check('Backup v2 com cursos, materiais, exercícios e fluxos; mesclar não duplica e mantém ligações',
+    bk2.version === 2 && bk2.data.courses.length && bk2.data.resources.length && bk2.data.exercises.length && bk2.data.workflows.length && bk2.data.runs.length && JSON.stringify(antes) === JSON.stringify(depoisV2.n) && depoisV2.runsOk && depoisV2.stepTasksOk, JSON.stringify({ antes, depoisV2 }));
 
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);

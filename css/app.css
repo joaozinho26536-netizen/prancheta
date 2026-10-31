@@ -525,6 +525,7 @@ body.locked dialog:not(.lock-dialog) { display: none; } /* formulário aberto fi
   .pills { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
   .demo-banner { margin: 12px 16px 0; }
   .toasts { bottom: 80px; }
+  .quick-tip { display: none; }
   .chip-label { display: none; }
   .grid-2, .grid-3, .form-grid { grid-template-columns: 1fr; }
   .week { grid-template-columns: 1fr; }

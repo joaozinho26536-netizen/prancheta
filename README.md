@@ -25,6 +25,11 @@ Arquivos estáticos, JavaScript puro, nenhuma dependência e nenhuma etapa de bu
 | `js/views-work.js` | Dashboard, Demandas (cards, lista, Kanban, detalhe), Tarefas (lista, Kanban, agenda), Revisões e Solicitantes |
 | `js/views-time.js` | Controle de tempo, Pausas e Calendário (dia, semana, mês) |
 | `js/views-more.js` | Referências, Anotações, Relatórios, Metas, Insights e Configurações |
+| `js/lock.js` | Senha (hash PBKDF2), tela de bloqueio e bloqueio automático |
+| `js/views-learn.js` | Cursos e Biblioteca |
+| `js/views-practice.js` | Prática: exercícios, evidências, avaliação e evolução |
+| `js/views-flow.js` | Fluxos de trabalho e checklists: modelos, editor, execuções nas demandas |
+| `js/views-files.js` | Arquivos: gerador de nomes e de estrutura de pastas |
 
 Os scripts são clássicos (não módulos ES) de propósito: módulos não carregam quando o arquivo é aberto direto do disco (`file://`).
 
@@ -42,7 +47,20 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - **notes**: anotações com tipo, etiquetas, fixação e vínculo opcional a demanda e solicitante
 - **goals**: meta com métrica calculada (horas na semana ou no mês, demandas concluídas, tarefas, pausas, tarefas dentro do estimado) ou valor manual
 - **activity**: registro das ações recentes (limitado a 500)
-- **meta/settings**: todas as preferências
+- **courses** (v2): curso com plataforma, instrutor, ferramenta, categoria, nível, status, prioridade, progresso (você informa), carga horária, minutos estudados fora do cronômetro (`extraMin`), próxima atividade, datas e aprendizados. `archived` esconde sem apagar.
+- **resources** (v2): material da biblioteca (tutorial, artigo, vídeo, documentação, atalhos…) com link, ferramenta, categoria, nível, etiquetas, status, avaliação, favorito, resumo e vínculos opcionais com curso, exercício e demanda.
+- **exercises** (v2): exercício prático com desafio, objetivo, técnica, ferramenta, origem (material/curso), datas, tempo, evidências (links, caminho, imagem reduzida), critérios, avaliação (`scores`: critério, nota 1–5, observação), resultado, próximos passos e marca de portfólio.
+- **workflows** (v2): modelo de fluxo ou checklist (`kind`), com categoria, ferramentas, critérios, `version` e `steps` (título, instruções, minutos, opcional, dependência, critério, itens com `required`).
+- **runs** (v2): execução de um modelo numa demanda. Guarda `templateId`, `templateVersion` e uma **cópia** das etapas e itens com o estado de cada um (`pending`, `done`, `skipped`), observações e a tarefa criada para a etapa (`taskId`). Tarefas criadas por etapa levam `runId` e `stepId`.
+- **sessions** ganharam `courseId` e `exerciseId` opcionais: uma sessão de estudo ou prática continua sendo uma sessão (conta como tempo trabalhado, como antes) e também soma no curso ou exercício, sem contar duas vezes.
+- **tasks** ganharam `courseId` (tarefa de estudo) e `dependsOn` (aviso de espera); **revisions** ganharam `link`.
+- **meta/settings**: todas as preferências; **meta/lock**: hash da senha (fora do backup)
+
+### Migração do banco (v1 → v2)
+
+- O banco IndexedDB passou da versão 1 para a 2. Na atualização, a Prancheta **só cria as listas novas** (cursos, materiais, exercícios, fluxos e execuções); as que já existiam, com todos os dados, ficam intactas. Nenhum registro é apagado ou recriado.
+- Se outra aba ainda estiver com a versão antiga, ela solta o banco e mostra um aviso para recarregar, em vez de tentar gravar num banco fechado. Se a atualização ficar bloqueada, aparece a mensagem para fechar as outras abas.
+- Coberto por teste: um banco v1 com demanda, tarefa, sessão e configurações abre na v2 com tudo preservado.
 
 ### Como o tempo é calculado
 
@@ -81,6 +99,8 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 
 ## Backup e recuperação
 
+**Formato:** o backup agora é a versão 2 (com cursos, materiais, exercícios, fluxos e execuções). Backups da versão 1 continuam importáveis; um backup de versão mais nova que a página é recusado com explicação. Ao **mesclar**, as execuções de fluxo e as tarefas de etapa continuam ligadas às suas demandas.
+
 **Fazer backup:** Configurações → Dados e backup → **Exportar backup completo**. O arquivo `prancheta-backup_AAAA-MM-DD_HHhMM.json` traz todos os registros e as configurações. Guarde-o num lugar seguro (pendrive, Drive, e-mail para você mesmo). Faça isso com frequência.
 
 **Restaurar:** Configurações → Importar backup → escolha o arquivo → **Validar e importar**.
@@ -110,7 +130,15 @@ O arquivo `modelo-importacao.json` tem o formato do backup, com exemplos de soli
 - **Metas:** horas por semana ou mês, demandas e tarefas concluídas, pausas, tarefas dentro do estimado ou valor manual; progresso atual e histórico dos últimos 6 períodos.
 - **Insights:** 12 regras transparentes, cada uma mostrando a regra usada; quando faltam dados, a análise diz o que falta em vez de inventar.
 - **Configurações:** nome, jornada e dias de trabalho, tipos de pausa e lembretes, notificações do sistema, categorias, tipos de nota, status de demanda com comportamento, início da semana, formato de data, cor de destaque, blocos do dashboard, limites dos alertas, backup, demonstração e apagar tudo.
-- **Navegação:** menu em pílula no topo com as seções principais (Início, Demandas, Tarefas, Anotações, Calendário, Tempo, Relatórios) e um destaque que desliza até a página aberta; trilho de ícones à esquerda com Busca, Revisões, Solicitantes, Pausas, Referências, Metas, Insights e Configurações.
+- **Visual:** tema claro em branco, cinza e verde-musgo (padrão) ou "Pôr do sol" com painéis de vidro (Configurações → Tema). Todas as cores são tokens; a cor de destaque é opcional.
+- **Navegação:** menu em pílula no topo com as seções principais (Início, Demandas, Tarefas, Anotações, Calendário, Tempo, Relatórios) e um destaque que desliza até a página aberta; barra lateral recolhível com rótulos e grupos (Trabalho: Revisões, Solicitantes, Fluxos, Arquivos; Tempo: Pausas; Criação: Referências; Aprendizado: Cursos, Biblioteca, Prática; Análise: Metas, Insights), Busca, Bloquear e Configurações. Recolhida, mostra só ícones com o nome ao passar o mouse.
+- **Cursos:** cadastro completo, escrita rápida, agrupados por status, filtros e busca. “Estudar agora” liga o cronômetro ao curso; ao encerrar, a Prancheta oferece atualizar progresso e próxima atividade (o tempo já ficou registrado). Tempo estudado = sessões de estudo + minutos lançados à mão, sem duplicar. “Criar tarefa de estudo” abre a tarefa pré-preenchida. Arquivar guarda o histórico.
+- **Biblioteca:** materiais por título ou colando um link; filtros por tipo, ferramenta, categoria e status; busca em título, resumo, anotações e etiquetas; favoritos; ordenação; cards ou lista; “Anotar” (cria anotação), “Praticar” (cria exercício) e “Vincular a demanda”. Links abrem em aba nova e não são tratados como conteúdo verificado.
+- **Prática:** exercícios com evidências, “Praticar agora” (cronômetro), envio para avaliação, avaliação por critérios configuráveis (1 a 5 + observação, sempre editável, sem atribuir nível profissional) e painel de evolução (concluídos, horas, técnicas, ferramentas, portfólio, pendentes). O gráfico mensal só aparece com 3+ avaliações em 2+ meses.
+- **Fluxos de trabalho e checklists:** modelos com etapas ordenáveis, instruções, tempo, dependência, critério de conclusão, etapas opcionais e itens obrigatórios/opcionais; versão sobe quando as etapas mudam; duplicar e arquivar. Quatro modelos iniciais editáveis (peça digital, material para impressão, tratamento de imagem, checklist de entrega), adicionados só se você pedir; o de impressão não fixa sangria, resolução, perfil ou formato. Na demanda: aplicar um ou mais modelos (cópia independente das etapas), marcar itens (a etapa fecha sozinha e reabre se desmarcar), concluir, pular, reabrir, observações por etapa, criar tarefa da etapa sem duplicar, concluir/cancelar/retomar o fluxo com aviso de pendências. “Nova demanda por modelo” preenche categoria, estimativa e orientações, com revisão antes de criar. Prazos das tarefas podem ser distribuídos até a entrega, sempre com confirmação e sem mexer em prazos existentes.
+- **Arquivos:** gerador de nomes por padrão configurável (`{solicitante}_{demanda}_{peca}_V{versao}_{data}_{sufixo}` + extensão), com limpeza de acentos e caracteres inválidos, prévia e copiar. Estrutura de pastas configurável com prévia, copiar caminhos, script para o Terminal e, no Chrome/Edge, criação direta numa pasta que você escolher e autorizar (File System Access API). Nada é criado ou renomeado sem você; a tela diz o que foi feito de fato.
+- **Tarefas:** além do que já havia, dependência simples entre tarefas (aviso “espera …”) e Duplicar para tarefas e demandas recorrentes.
+- **Início configurável:** além dos blocos anteriores, tarefas do dia, etapas de fluxo pendentes, aprendizado (estudo e prática da semana, próxima atividade, cursos em andamento) e exercícios pendentes. Ligue e desligue em Configurações → Blocos da página inicial (os novos começam desligados, menos Tarefas do dia).
 - **Escrita rápida:** Tarefas, Anotações e Demandas abrem com o cursor num campo no topo. Digite e aperte Enter para criar (nas anotações, a primeira linha vira o título e `Ctrl+Enter` salva). O cursor continua no campo para a próxima. Detalhes como prazo e prioridade ficam para depois, clicando no item; o "Formulário completo" continua disponível. Com uma demanda filtrada, ou dentro da página de uma demanda, a tarefa já nasce ligada a ela.
   - Em Tarefas e Demandas, o texto pode trazer prazo, horário e prioridade, que saem do título: `hoje`, `amanhã`, `depois de amanhã`, dias da semana (`sexta`, `segunda-feira`, sempre a próxima, contando hoje), datas `20/12` ou `20/12/2026` (data já passada sem ano vai para o ano seguinte), horários `14h` ou `14:30` (só em tarefas; sem data, o prazo vira hoje) e `!urgente`, `!alta`, `!média`, `!baixa`. Pode vir antes `até`, `para`, `pra`, `na`, `no`, `dia` ou `às`. Ex.: “Enviar arte até sexta 14h !urgente”.
   - Uma prévia ao lado do campo mostra o que foi entendido antes do Enter. Limite: um dia da semana no meio do nome (“Banner da sexta-feira santa”) também vira prazo; a prévia mostra isso, e dá para corrigir depois no item.
@@ -120,12 +148,22 @@ O arquivo `modelo-importacao.json` tem o formato do backup, com exemplos de soli
 
 - Os dados ficam só neste navegador e computador. Não há nuvem, conta nem acesso pelo celular.
 - Lembretes e notificações só funcionam com a Prancheta aberta numa aba. Não há aviso com o navegador fechado.
-- O visual é um só (vidro sobre pôr do sol); não há tema claro alternativo na tela. A impressão sai em fundo branco. As fontes Sora e Manrope vêm do Google Fonts: sem internet, o navegador usa a fonte do sistema.
-- Tarefas recorrentes e modelos de demanda ainda não existem como recurso. O Insight de "tarefas recorrentes" aponta as repetições para você padronizar.
+- A impressão sai em fundo branco. As fontes Sora e Manrope vêm do Google Fonts: sem internet, o navegador usa a fonte do sistema.
+- Os blocos do Início podem ser ligados e desligados, mas não reordenados.
+- Não há repetição automática de tarefas (diária, semanal); para tarefas recorrentes, use Duplicar ou um modelo de fluxo.
+- O progresso dos cursos é informado por você: a Prancheta não acessa plataformas de curso.
 - O navegador não acessa arquivos do computador por conta própria. Imagens de referência são copiadas reduzidas (até 900 px) para dentro do banco, e o "caminho do arquivo" é só um texto de anotação.
 - O calendário da semana lista os itens por horário, sem uma grade de horas desenhada.
 - Feito para uso no computador. Funciona em telas menores (o menu em pílula rola na horizontal e o trilho de ícones vai para o rodapé), mas não foi refinado para celular.
 - Volumes muito grandes (dezenas de milhares de sessões) deixariam os relatórios mais lentos, porque tudo é calculado em memória.
+
+## Integração com Adobe: o que existe e o que não existe
+
+**Implementado (sem acessar os aplicativos):** checklists e fluxos por ferramenta, instruções por etapa (onde você pode anotar menus e atalhos), materiais e atalhos na Biblioteca, links para documentação, nomes de arquivo padronizados, estrutura de pastas, controle de versões em Revisões e registro de tempo por demanda, tarefa, curso e exercício.
+
+**Não existe, e a Prancheta não finge que existe:** ela não abre, lê, exporta, renomeia nem salva documentos do Photoshop, Illustrator, InDesign ou outros; não vê camadas, fontes, objetos, ações ou histórico dos aplicativos; não se conecta à conta Adobe nem à Creative Cloud; não sincroniza entre computadores. Marcar “Exportar nos formatos solicitados” num checklist só registra que você fez isso.
+
+**Integrações possíveis no futuro (cada uma exigiria estudo próprio, documentação oficial atual e permissões explícitas):** acesso a arquivos pela File System Access API além da criação de pastas (só Chrome/Edge); plugins UXP ou scripts executados dentro dos aplicativos Adobe; APIs oficiais da Adobe para serviços em nuvem, com credenciais; um aplicativo local auxiliar; backend com conta e sincronização. Nenhuma delas foi implementada.
 
 ## Testes
 
@@ -134,5 +172,5 @@ node --test tests/model.test.js   # regras de cálculo (Node 18+)
 node tests/e2e.js                 # fluxos no navegador (precisa do Playwright com Chromium)
 ```
 
-- `tests/model.test.js`: 17 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify.
-- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 31 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.
+- `tests/model.test.js`: 24 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify, tempo de estudo e prática sem duplicar, validação dos cadastros novos, backups v1/v2, evolução das avaliações, cópia independente dos fluxos com progresso e itens obrigatórios, distribuição de prazos, nomes de arquivo e estrutura de pastas.
+- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 37 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console. Também cobre: migração de um banco v1 preenchido para a v2; cursos e biblioteca; prática com avaliação; fluxos aplicados com tarefas e prazos, sem duplicar, preservando a execução quando o modelo muda; geração de nome e script de pastas que de fato cria as pastas; backup v2 mesclado sem duplicar e sem quebrar ligações; navegação por todas as 19 páginas sem erros.
