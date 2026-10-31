@@ -118,6 +118,7 @@
             <p class="small muted">${resMeta(r) || 'Sem ferramenta ou categoria'}</p>
             ${r.summary || r.description ? h`<p class="small clamp pre">${r.summary || r.description}</p>` : ''}
             <div class="row small">${U.badge(U.label(U.RESOURCE_STATUSES, r.status), tone[r.status])}${stars(Number(r.rating))}${(r.tags || []).map(t => h`<button class="tag" data-act="lib-tag:${t}">#${t}</button>`)}</div>
+            ${r.filePath ? h`<div class="row"><span class="small muted mono ellipsis grow" title="${r.filePath}">${r.filePath}</span>${U.openFile(r.filePath)}</div>` : ''}
             <footer class="card-actions">${resActions(r)}</footer></article>`)}</div>`;
       return h`${App.page('Biblioteca', `${S.resources.filter(r => r.status !== 'archived').length} materiais · ${S.resources.filter(r => r.favorite).length} favoritos`, h`<button class="btn ghost" data-act="new:resources">Formulário completo</button>`)}
       ${App.quick('resources')}

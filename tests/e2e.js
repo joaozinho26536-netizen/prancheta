@@ -432,6 +432,25 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   check('Backup v2 com cursos, materiais, exercícios e fluxos; mesclar não duplica e mantém ligações',
     bk2.version === 2 && bk2.data.courses.length && bk2.data.resources.length && bk2.data.exercises.length && bk2.data.workflows.length && bk2.data.runs.length && JSON.stringify(antes) === JSON.stringify(depoisV2.n) && depoisV2.runsOk && depoisV2.stepTasksOk, JSON.stringify({ antes, depoisV2 }));
 
+  // abrir aplicativos: links oficiais do app Atalhos do Mac, configuráveis; botão de abrir arquivo pelo caminho
+  await page.click('#apps-btn');
+  const appLinks = await page.$$eval('#apps-menu a', as => as.map(a => [a.textContent.trim(), a.getAttribute('href')]));
+  await page.click('#apps-menu [data-act="apps-help"]');
+  const ajuda = await page.locator('dialog[open]').innerText(); await page.click('dialog[open] button');
+  await go('configuracoes');
+  await page.fill('#s-launch', 'Photoshop | Abrir Photoshop\nIllustrator | Abrir Illustrator\nPremiere Pro | Abrir Premiere');
+  await page.click('[data-sf="launchers"] button.primary'); await sleep(200);
+  await page.click('#apps-btn');
+  const appLinks2 = await page.$$eval('#apps-menu a', as => as.map(a => a.getAttribute('href')));
+  await page.click('#apps-btn');
+  await go('pratica');
+  const xid2 = await page.evaluate(() => Store.S.exercises[0].id);
+  await page.evaluate(id => { const x = Store.S.exercises.find(e => e.id === id); return Store.save('exercises', { ...x, filePath: '/Users/eu/Trabalho/cartaz final.ai' }); }, xid2); await sleep(150);
+  const abrirArq = await page.$eval('main a[href^="shortcuts://"]', a => a.getAttribute('href'));
+  check('Abrir aplicativos pelo app Atalhos (links, configuração, abrir arquivo pelo caminho)',
+    appLinks[0][1] === 'shortcuts://run-shortcut?name=Abrir%20Photoshop' && /Illustrator/.test(appLinks[1][0]) && /Abrir App/.test(ajuda) && appLinks2.includes('shortcuts://run-shortcut?name=Abrir%20Premiere') &&
+    abrirArq === 'shortcuts://run-shortcut?name=Abrir%20arquivo%20da%20Prancheta&input=text&text=%2FUsers%2Feu%2FTrabalho%2Fcartaz%20final.ai', JSON.stringify({ appLinks, appLinks2, abrirArq }));
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));

@@ -503,6 +503,16 @@
       ...paths.map(p => "mkdir -p '" + p + "'"), "echo \"Pastas criadas em: $(pwd)/" + (paths[0] || '') + "\"", ''].join('\n');
   }
 
+  // ---------- abrir aplicativos pelo app Atalhos do Mac ----------
+  // formato oficial da Apple: shortcuts://run-shortcut?name=[nome]&input=text&text=[texto]
+  function shortcutUrl(name, text) {
+    const n = String(name || '').trim();
+    if (!n) return '';
+    return 'shortcuts://run-shortcut?name=' + encodeURIComponent(n) + (text != null && text !== '' ? '&input=text&text=' + encodeURIComponent(text) : '');
+  }
+  // caminho de arquivo no Mac que dá para abrir: absoluto (/Users/…) ou na pasta pessoal (~/…)
+  const isLocalPath = p => /^(\/|~\/)[^\0]+$/.test(String(p || '').trim());
+
   // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
   // "Entregar banner até sexta 14h !urgente" → título "Entregar banner", prazo na próxima sexta, 14:00, urgente
   const WEEK = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
@@ -555,6 +565,8 @@
       { id: 'review', name: 'Em revisão', kind: 'active' }, { id: 'done', name: 'Concluída', kind: 'done' }, { id: 'cancelled', name: 'Cancelada', kind: 'cancelled' }],
     refCategories: ['Branding', 'Tipografia', 'Composição', 'Cores', 'Campanhas', 'Layouts', 'Geral'],
     noteKinds: ['Ideia', 'Briefing', 'Instrução', 'Feedback', 'Decisão criativa', 'Pendência', 'Importante'],
+    launchers: [{ name: 'Photoshop', shortcut: 'Abrir Photoshop' }, { name: 'Illustrator', shortcut: 'Abrir Illustrator' }],
+    fileShortcut: 'Abrir arquivo da Prancheta',
     namePattern: '{solicitante}_{demanda}_{peca}_V{versao}_{data}_{sufixo}',
     folderTemplate: ['01_Briefing', '02_Referencias', '03_Arquivos_Editaveis', '04_Assets', '05_Exportacoes', '06_Revisoes', '07_Entrega_Final'],
     tools: ['Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign', 'Adobe Premiere Pro', 'Adobe After Effects', 'Adobe Lightroom', 'Adobe Acrobat', 'Figma', 'Canva'],
@@ -567,7 +579,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    BACKUP_VERSION, cleanSegment, buildFileName, folderPaths, folderScript, instantiateRun, runProgress, toggleRunItem, setStepState, distributeDue, workflowMinutes, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    BACKUP_VERSION, shortcutUrl, isLocalPath, cleanSegment, buildFileName, folderPaths, folderScript, instantiateRun, runProgress, toggleRunItem, setStepState, distributeDue, workflowMinutes, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

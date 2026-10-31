@@ -480,6 +480,7 @@
       case 'del': App.del(a, b); break;
       case 'archive': App.toggleArchive(a, b); break;
       case 'wf-project': App.newProjectFromTemplate(); break;
+      case 'apps-help': App.setupHelp(); break;
       case 'go': go(a + (b ? '/' + b : '')); break;
       case 'toggle-task': App.toggleTask(a); break;
       case 'toggle-check': App.toggleCheck(a, b, c, el.dataset.item); break;
@@ -647,6 +648,31 @@
     try { await St.bulkPut(list); U.toast('Dados de demonstração carregados. Remova quando quiser pelo aviso no topo.', 'good', 6000); } catch (e) { U.fail(e); }
   }
 
+  // ---------- abrir aplicativos (Photoshop, Illustrator…) pelo app Atalhos do Mac ----------
+  // um site não abre programas sozinho; o app Atalhos aceita ser chamado por link e abre o aplicativo
+  App.setupHelp = function () {
+    const ls = S.settings.launchers || [];
+    U.dialog(h`<form method="dialog" class="ask help"><h2>Abrir aplicativos pela Prancheta</h2>
+      <p>O navegador não deixa um site abrir programas do computador. No Mac, o app <strong>Atalhos</strong> resolve: a Prancheta chama um atalho seu, e ele abre o aplicativo. Configure uma vez:</p>
+      <ol class="steps">
+        <li>Abra o app <strong>Atalhos</strong> (Shortcuts) no Mac.</li>
+        <li>Clique em <strong>+</strong> para criar um atalho e dê o nome exatamente como na lista abaixo.</li>
+        <li>Na busca de ações (à direita), procure <strong>Abrir App</strong>, arraste para o atalho, clique em “App” e escolha o aplicativo da Adobe.</li>
+        <li>Repita para cada aplicativo da lista.</li>
+        <li>Na primeira vez que clicar no aplicativo na Prancheta, o navegador pergunta se pode abrir o Atalhos: marque <strong>Sempre permitir</strong>.</li>
+      </ol>
+      <ul class="plain">${ls.map(l => h`<li><strong>${l.name}</strong>: atalho chamado <code>${l.shortcut}</code></li>`)}</ul>
+      <h3>Opcional: abrir arquivos pelo caminho</h3>
+      <p>Para os botões “Abrir arquivo” (referências, materiais e exercícios com caminho de arquivo), crie o atalho <code>${S.settings.fileShortcut}</code> com a ação <strong>Executar Script de Shell</strong>, texto <code>open "$1"</code> e “Passar Entrada” como <strong>argumentos</strong>. Em Atalhos → Ajustes → Avançado, ative “Permitir a Execução de Scripts”. O arquivo abre no aplicativo padrão dele (um .psd no Photoshop, um .ai no Illustrator).</p>
+      <p class="small muted">Os nomes dos atalhos e a lista de aplicativos ficam em Configurações → Abrir aplicativos. Funciona no Mac (macOS 12 ou mais novo); em outros sistemas os botões não fazem nada.</p>
+      <div class="actions"><button class="btn primary">Entendi</button></div></form>`, 'wide');
+  };
+  function renderApps() {
+    const ls = (S.settings.launchers || []).filter(l => l.name && l.shortcut);
+    document.getElementById('apps-menu').innerHTML = U.html(h`${ls.map(l => h`<a role="menuitem" href="${M.shortcutUrl(l.shortcut)}" data-launch>${icon('play')} Abrir ${l.name}</a>`)}
+      <button role="menuitem" data-act="apps-help">${icon('info')} Como configurar</button>`);
+  }
+  App.renderApps = renderApps;
   // ---------- música: player oficial do Spotify, fora do <main> para seguir tocando entre as páginas ----------
   function renderMusic() {
     const box = document.getElementById('music'), mu = S.settings.music || { current: '', saved: [] };
@@ -722,6 +748,10 @@
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
     document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });
     setupSearch();
+    const ab = document.getElementById('apps-btn'), am = document.getElementById('apps-menu');
+    ab.addEventListener('click', () => { am.hidden = !am.hidden; ab.setAttribute('aria-expanded', !am.hidden); });
+    am.addEventListener('click', e => { am.hidden = true; ab.setAttribute('aria-expanded', 'false'); if (e.target.closest('[data-launch]')) U.toast('Abrindo pelo app Atalhos… Se nada acontecer, veja “Como configurar”.', '', 6000, { label: 'Como configurar', fn: App.setupHelp }); });
+    document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { am.hidden = true; ab.setAttribute('aria-expanded', 'false'); } });
     try { await St.init(); }
     catch (e) {
       document.getElementById('main').innerHTML = U.html(h`<div class="empty"><p class="empty-title">Não foi possível abrir o armazenamento local</p><p>${e.message}</p><p>A Prancheta guarda os dados no IndexedDB do navegador. Em janelas anônimas ou com dados de sites bloqueados, ele pode não estar disponível.</p></div>`);
@@ -732,7 +762,8 @@
     window.addEventListener('prancheta-outdated', () => U.toast('A Prancheta foi atualizada em outra aba. Recarregue esta aba para continuar salvando.', 'warn', 3600000, { label: 'Recarregar', fn: () => location.reload() }));
     await window.Lock.gate();
     setupMusic();
-    St.onChange(() => { App.applyAccent(); render(); renderMusic(); });
+    renderApps();
+    St.onChange(() => { App.applyAccent(); render(); renderMusic(); renderApps(); });
     // editor com alterações não salvas: confirma antes de sair (volta para o editor se cancelar)
     window.addEventListener('hashchange', () => {
       if (App.leaveGuard && App.leaveGuard()) { if (!confirm('Há alterações não salvas neste modelo. Sair sem salvar?')) { location.hash = lastRoute; return; } App.resetGuard(); }

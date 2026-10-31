@@ -24,7 +24,7 @@
           ${r.typography ? h`<p class="small">${icon('type', 'sm')} ${r.typography}</p>` : ''}
           ${r.description ? h`<p class="small muted clamp">${r.description}</p>` : ''}
           <footer>${(r.tags || []).map(t => h`<button class="tag" data-act="ref-tag:${t}">#${t}</button>`)}<span class="grow"></span>${M.isUrl(r.url || '') ? h`<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="icon-btn" aria-label="Abrir link">${icon('link')}</a>` : ''}</footer>
-          ${r.projectId ? h`<p class="small muted">${icon('folder', 'sm')} ${H.pname(r.projectId)}</p>` : ''}${r.filePath ? h`<p class="small muted mono ellipsis" title="${r.filePath}">${r.filePath}</p>` : ''}
+          ${r.projectId ? h`<p class="small muted">${icon('folder', 'sm')} ${H.pname(r.projectId)}</p>` : ''}${r.filePath ? h`<p class="small muted mono ellipsis" title="${r.filePath}">${r.filePath}</p>${U.openFile(r.filePath)}` : ''}
         </article>`)}</div>`}`;
     },
     act(act, [a]) { if (act === 'ref-tag') { H.vs('refs', RDEF).tag = a; App.render(); } },
@@ -234,6 +234,13 @@
           <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['today', 'Tarefas do dia'], ['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes'], ['flows', 'Etapas de fluxo pendentes'], ['learning', 'Aprendizado (cursos e estudo da semana)'], ['practice', 'Exercícios pendentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
         </div><footer><button class="btn primary">Salvar</button></footer></form>
 
+      <form class="panel" data-sf="launchers"><h2>Abrir aplicativos</h2>
+        <p class="small muted">Os aplicativos do botão <strong>Abrir aplicativos</strong> (barra superior). Cada um abre por um atalho do app Atalhos do Mac com o nome indicado. <button type="button" class="link" data-act="apps-help">Como configurar</button></p>
+        <div class="form-grid">
+          <div class="field full"><label for="s-launch">Aplicativos</label><textarea id="s-launch" name="launchers" rows="5">${(s.launchers || []).map(l => l.name + ' | ' + l.shortcut).join('\n')}</textarea><small class="hint">Um por linha: nome que aparece no menu | nome do atalho. Ex.: Premiere Pro | Abrir Premiere</small></div>
+          <div class="field full"><label for="s-fsh">Atalho para abrir arquivos pelo caminho</label><input id="s-fsh" name="fileShortcut" value="${s.fileShortcut || ''}"></div>
+        </div><footer><button class="btn primary">Salvar</button></footer></form>
+
       <form class="panel" data-sf="password"><h2>Senha</h2>
         <p class="small muted">A senha é pedida ao abrir a Prancheta numa aba nova. Para travar agora, use o cadeado no trilho de ícones. Ela impede que outra pessoa abra a Prancheta no seu navegador; os dados em si não ficam criptografados.</p>
         <div class="form-grid">
@@ -322,6 +329,11 @@
       if (fd.get('next') !== fd.get('again')) return err('As novas senhas não são iguais.');
       try { await window.Lock.changePassword(String(fd.get('current')), String(fd.get('next'))); f.reset(); U.toast('Senha trocada.', 'good'); } catch (e) { err(e.message); }
       return;
+    }
+    if (sec === 'launchers') {
+      const list = [];
+      for (const l of lines('launchers')) { const [name, shortcut] = l.split('|').map(x => x.trim()); if (!name || !shortcut) return err(`Linha inválida: “${l}”. Use nome | nome do atalho.`); list.push({ name, shortcut }); }
+      patch = { launchers: list, fileShortcut: String(fd.get('fileShortcut') || '').trim() };
     }
     if (sec === 'autolock') patch = { autoLockMin: Math.max(0, Number(fd.get('autoLockMin')) || 0) };
     if (sec === 'prefs') {

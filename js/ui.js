@@ -57,6 +57,11 @@
   function icon(name, cls = '') { return raw(`<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`); }
   function badge(text, tone = '') { return h`<span class="badge ${tone}">${text}</span>`; }
   function priorityBadge(p) { return badge(label(PRIORITIES, p), { urgent: 'bad', high: 'warn', medium: '', low: 'muted' }[p] || ''); }
+  // abre o arquivo do caminho pelo atalho do Mac (veja Abrir aplicativos)
+  function openFile(path) {
+    if (!window.Model.isLocalPath(path)) return '';
+    return h`<a class="btn small ghost" href="${window.Model.shortcutUrl(window.Store.S.settings.fileShortcut, path.trim())}" title="Abre pelo app Atalhos do Mac">${icon('file', 'sm')} Abrir arquivo</a>`;
+  }
   function empty(title, text, action) { return h`<div class="empty"><p class="empty-title">${title}</p><p>${text}</p>${action || ''}</div>`; }
 
   // ---------- aviso (toast) ----------
@@ -219,6 +224,6 @@
   window.UI = {
     esc, raw, h, html, fmtDate, fmtTime, fmtDateTime, fmtDur, fmtClock, fmtHours, WEEKDAYS, MONTHS, relDay,
     LEVELS, COURSE_STATUSES, RESOURCE_TYPES, RESOURCE_STATUSES, PRIORITIES, TASK_STATUSES, REVISION_STATUSES, EVENT_TYPES, label, projectStatusName,
-    isMac, keyMod, keyAlt, icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
+    isMac, keyMod, keyAlt, openFile, icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
   };
 })();

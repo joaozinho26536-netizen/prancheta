@@ -254,3 +254,11 @@ test('arquivos: nome padronizado e estrutura de pastas', () => {
   assert.match(sh, /mkdir -p 'Marketing-Campanha\/05_Exportacoes\/Redes'/);
   assert.ok(!/\.\./.test(sh.split('\n').filter(l => l.startsWith('mkdir')).join()));                                       // não sobe de pasta
 });
+
+test('abrir aplicativos: link do app Atalhos do Mac', () => {
+  assert.strictEqual(M.shortcutUrl('Abrir Photoshop'), 'shortcuts://run-shortcut?name=Abrir%20Photoshop');
+  assert.strictEqual(M.shortcutUrl('Abrir arquivo da Prancheta', '/Users/eu/Trabalho/Arte final.psd'), 'shortcuts://run-shortcut?name=Abrir%20arquivo%20da%20Prancheta&input=text&text=%2FUsers%2Feu%2FTrabalho%2FArte%20final.psd');
+  assert.strictEqual(M.shortcutUrl('  '), '');
+  assert.ok(M.isLocalPath('/Users/eu/a.ai') && M.isLocalPath('~/Desktop/b.psd'));
+  assert.ok(!M.isLocalPath('C:\\\\x.psd') && !M.isLocalPath('https://x.com/a.psd') && !M.isLocalPath(''));
+});

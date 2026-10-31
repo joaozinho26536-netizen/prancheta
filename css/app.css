@@ -446,6 +446,11 @@ details summary { cursor: pointer; color: var(--link); }
 details form, details p { margin-top: 8px; }
 details textarea { width: 100%; font-family: var(--mono); font-size: 13px; }
 
+.menu a { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--fg); text-decoration: none; }
+.menu a:hover { background: var(--surface-2); text-decoration: none; }
+.help { max-width: 640px; }
+.help code { font-family: var(--mono); font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
 /* escrita rápida */
 .quick { position: relative; display: flex; align-items: center; }
 .quick input { flex: 1; padding: 13px 16px 13px 44px; border-radius: 999px; font-size: 15px; background: var(--glass); border: 1px solid var(--line-2); }

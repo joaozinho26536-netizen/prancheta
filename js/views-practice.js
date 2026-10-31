@@ -84,6 +84,7 @@
         <div><dt>Avaliação</dt><dd>${avg == null ? 'não avaliado' : fmtScore(avg) + ' de 5'}</dd></div>
       </dl>
       ${x.portfolio ? h`<p class="small">${U.badge('Portfólio', 'good')}</p>` : ''}
+      ${x.filePath ? h`<div class="row"><span class="small muted mono ellipsis grow" title="${x.filePath}">${x.filePath}</span>${U.openFile(x.filePath)}</div>` : ''}
       ${links.length ? h`<ul class="links small">${links.map(l => h`<li><a href="${l}" target="_blank" rel="noopener noreferrer">${icon('link', 'sm')}${l.replace(/^https?:\/\//, '')}</a></li>`)}</ul>` : ''}
       <footer class="card-actions">
         ${x.status !== 'done' ? h`<button class="btn small" data-act="practice:${x.id}">${icon('play')} Praticar agora</button>` : ''}
