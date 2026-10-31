@@ -44,9 +44,18 @@
     return el;
   }
 
+  // trava por cima do app, sem recarregar: formulário aberto, música e cronômetro continuam
+  let showing = null;
   async function gate() {
     const lock = await St.getMeta(KEY);
-    if (lock && isUnlocked()) return;
+    if (lock && isUnlocked()) return startIdleWatch();
+    if (showing) return showing;
+    showing = unlockScreen(lock);
+    await showing;
+    showing = null;
+    startIdleWatch();
+  }
+  async function unlockScreen(lock) {
     document.body.classList.add('locked');
     const el = screen(lock ? 'unlock' : 'create');
     const form = el.querySelector('form'), msg = el.querySelector('.lock-msg');
@@ -89,7 +98,7 @@
     const d = U.dialog(h`<form method="dialog" class="ask"><h2>Esqueceu a senha?</h2>
       <p>Não é possível recuperar a senha. Para voltar a usar a Prancheta neste navegador, é preciso apagar todos os dados e começar de novo. Se você tem um backup exportado, poderá importá-lo depois.</p>
       <label for="forgot-confirm">Digite <strong>APAGAR</strong> para apagar tudo e criar uma nova senha</label><input id="forgot-confirm" autocomplete="off">
-      <div class="actions"><button value="no" class="btn">Cancelar</button><button value="yes" class="btn danger">Apagar tudo</button></div></form>`, 'small');
+      <div class="actions"><button value="no" class="btn">Cancelar</button><button value="yes" class="btn danger">Apagar tudo</button></div></form>`, 'small lock-dialog');
     d.addEventListener('close', async () => {
       if (d.returnValue !== 'yes') return;
       if (d.querySelector('#forgot-confirm').value.trim() !== 'APAGAR') return U.toast('Confirmação incorreta: nada foi apagado.', 'bad');
@@ -105,5 +114,24 @@
     await St.setMeta(KEY, await makeLock(next));
   }
 
-  window.Lock = { gate, changePassword, lockNow() { setUnlocked(false); location.reload(); } };
+  function lockNow() { setUnlocked(false); return gate(); }
+
+  // bloqueia sozinho depois de X minutos sem mexer no mouse ou no teclado (Configurações → Senha).
+  // Conta pelo relógio, então também vale depois que o Mac dorme e acorda.
+  let watching = false, lastActivity = Date.now();
+  function startIdleWatch() {
+    if (watching) return;
+    watching = true;
+    const bump = () => { if (!showing) lastActivity = Date.now(); };
+    ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, bump, { passive: true, capture: true }));
+    const check = () => {
+      const min = Number(St.S.settings.autoLockMin) || 0;
+      if (min > 0 && !showing && Date.now() - lastActivity >= min * 60000) lockNow();
+    };
+    setInterval(check, 10000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    addEventListener('focus', check);
+  }
+
+  window.Lock = { gate, changePassword, lockNow };
 })();

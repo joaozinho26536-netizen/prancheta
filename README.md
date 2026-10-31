@@ -52,6 +52,13 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - Só uma sessão fica ativa por vez. Antes de iniciar outra, o sistema relê o banco (cobre outra aba aberta) e pede confirmação para encerrar a atual.
 - Intervalos que passam da meia-noite são divididos entre os dias.
 
+## No Mac
+
+- **Navegador:** Chrome ou Edge são a escolha mais segura para os dados. No **Safari**, a Apple apaga os dados guardados por sites que você não abre há 7 dias (proteção de rastreamento do Safari). Usando todo dia, não acontece; mas férias ou uma semana sem abrir podem apagar tudo. Se usar o Safari, exporte backups com frequência.
+- **Como app:** no Chrome, menu ⋮ → Salvar e compartilhar → Criar atalho (marque "Abrir como janela"); no Safari (macOS 14 ou mais novo), Arquivo → Adicionar ao Dock.
+- **Atalhos:** `⌥ Option` no lugar de `Alt` (⌥N tarefa, ⌥P demanda, ⌥A anotação, ⌥T cronômetro, ⌥B pausa, ⌥E expediente) e `⌘ Enter` para salvar anotação. A Prancheta mostra os símbolos do Mac nas telas.
+- Os testes automáticos rodam no Chrome; o Safari não foi testado automaticamente.
+
 ## Onde ficam os dados
 
 - Tudo fica no **IndexedDB deste navegador, neste computador**. As preferências de exibição (modo de visualização, aviso já lido) ficam no `localStorage`.
@@ -64,6 +71,7 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 ## Senha e segurança
 
 - **Senha:** no primeiro acesso, a Prancheta pede para criar uma senha (mínimo de 4 caracteres). Depois, ela é pedida ao abrir a Prancheta numa aba ou janela nova, numa tela no estilo da tela de bloqueio do Mac. Recarregar a mesma aba não pede de novo. O cadeado no trilho de ícones trava na hora. Após 5 tentativas erradas, é preciso esperar 30 s. A troca de senha fica em Configurações → Senha.
+- **Bloqueio automático:** depois de 10 minutos sem mexer no mouse ou no teclado, a Prancheta trava sozinha (ajustável em Configurações → Bloqueio automático, de 1 minuto a 1 hora, ou nunca). Conta pelo relógio, então vale também quando o Mac dorme e acorda. Travar não recarrega a página: formulário aberto, texto digitado, cronômetro e música continuam como estavam.
 - **Como a senha é guardada:** só um hash (PBKDF2-SHA256, 210 mil iterações, sal aleatório), nunca a senha. Ele fica fora do backup.
 - **Esqueceu a senha?** Não há recuperação. A tela de senha oferece apagar tudo e começar de novo; um backup exportado pode ser importado depois.
 - **Limite:** a senha é uma trava de acesso, não criptografia. Quem tiver o computador destravado e souber usar as ferramentas de desenvolvedor do navegador consegue ler os dados. Proteja também o usuário do computador.
@@ -123,4 +131,4 @@ node tests/e2e.js                 # fluxos no navegador (precisa do Playwright c
 ```
 
 - `tests/model.test.js`: 17 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify.
-- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 29 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.
+- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 31 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.

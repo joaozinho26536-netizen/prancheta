@@ -418,7 +418,7 @@
 
   const DEFAULT_SETTINGS = {
     name: '', workStart: '09:00', workEnd: '18:00', lunchMin: 60, workDays: [1, 2, 3, 4, 5], weekStart: 1,
-    dateFormat: 'dd/mm/aaaa', breakReminderMin: 50, notify: false, maxTasksPerDay: 5, staleDays: 5, accent: '#4f8bff',
+    dateFormat: 'dd/mm/aaaa', breakReminderMin: 50, notify: false, maxTasksPerDay: 5, staleDays: 5, accent: '#4f8bff', autoLockMin: 10,
     calendarView: 'week', music: { current: '', saved: [] }, dashboard: { charts: true, activity: true, goals: true, deadlines: true },
     breakTypes: [{ id: 'short', name: 'Pausa curta', min: 10 }, { id: 'long', name: 'Pausa longa', min: 20 }, { id: 'lunch', name: 'Almoço', min: 60 }],
     categories: ['Criação de logotipo', 'Identidade visual', 'Branding', 'Posts para redes sociais', 'Banners e anúncios', 'Flyers e panfletos', 'Cartazes', 'Apresentações', 'Materiais impressos', 'Embalagens', 'Edição e tratamento de imagens', 'Peças publicitárias', 'Outros'],

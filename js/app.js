@@ -184,7 +184,7 @@
   App.quick = (type, extra = {}) => {
     const attrs = h` data-quick="${type}" data-extra='${JSON.stringify(extra)}' placeholder="${QUICK_HINT[type]}" aria-label="${QUICK_HINT[type]}"`;
     return type === 'notes'
-      ? h`<form class="quick note-quick"><textarea rows="3"${attrs}></textarea><div class="quick-foot"><span class="small muted"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> salva</span><button class="btn primary small">Salvar anotação</button></div></form>`
+      ? h`<form class="quick note-quick"><textarea rows="3"${attrs}></textarea><div class="quick-foot"><span class="small muted"><kbd>${U.keyMod}</kbd>+<kbd>Enter</kbd> salva</span><button class="btn primary small">Salvar anotação</button></div></form>`
       : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">Enter cria · ex.: “até sexta 14h !urgente”</span></form>`;
   };
   document.addEventListener('submit', async e => {
@@ -499,11 +499,11 @@
 
   // ---------- atalhos ----------
   document.addEventListener('keydown', e => {
-    if (document.querySelector('dialog[open]')) return;
+    if (document.querySelector('dialog[open]') || document.body.classList.contains('locked')) return;
     const typing = e.target.matches('input, textarea, select');
     if (e.key === '/' && !typing) { e.preventDefault(); openSearch(); return; }
     if (!e.altKey) return;
-    const k = e.key.toLowerCase();
+    const k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : '';
     const map = { n: () => App.edit('tasks'), p: () => App.edit('projects'), a: () => App.edit('notes'), t: () => active.session() ? App.stopSession() : App.startSession(), b: () => App.chooseBreak(), e: () => active.workday() ? App.endWorkday() : App.startWorkday() };
     if (map[k]) { e.preventDefault(); map[k](); }
   });

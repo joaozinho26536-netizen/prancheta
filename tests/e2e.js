@@ -31,6 +31,8 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await page.fill('.lock [name=p2]', 'cafe1234');
   await page.press('.lock [name=p2]', 'Enter');
   await page.waitForSelector('#nav a');
+  // o teste avança o relógio por horas; o bloqueio automático tem verificação própria lá embaixo
+  await page.evaluate(() => Store.saveSettings({ autoLockMin: 0 }));
   const dlg = 'dialog[open]';
   const fill = async (k, v) => { const el = page.locator(`${dlg} [name="${k}"]`); (await el.evaluate(e => e.tagName)) === 'SELECT' ? await el.selectOption(v) : await el.fill(v); };
   const submit = () => page.click(`${dlg} button[type=submit]`);
@@ -297,6 +299,28 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await tab.close();
   check('Senha: criação exige 4+ caracteres, outra aba pede a senha, errada é recusada, só o hash é guardado',
     /pelo menos 4/.test(shortMsg) && hiddenApp && !inside.locked && inside.lockGone && inside.demandas >= 1 && savedLock, JSON.stringify({ shortMsg, hiddenApp, inside, savedLock }));
+
+  // bloqueio automático: 10 min parado trava sem recarregar; atalhos não funcionam travado
+  await page.evaluate(() => Store.saveSettings({ autoLockMin: 10 }));
+  await go('anotacoes');
+  await page.keyboard.type('rascunho em andamento');
+  await page.evaluate(() => { window.__semRecarregar = 1; });
+  await page.clock.runFor(9 * 60 * 1000);
+  const aindaAberto = await page.locator('.lock').count() === 0;
+  await page.clock.runFor(2 * 60 * 1000); await sleep(100);
+  const travou = await page.locator('.lock [name=p1]').isVisible();
+  await page.keyboard.press('Alt+KeyN');
+  const atalhoTravado = await page.evaluate(() => !document.querySelector('dialog[open]'));
+  await page.fill('.lock [name=p1]', 'cafe1234'); await page.press('.lock [name=p1]', 'Enter');
+  await page.waitForSelector('.lock', { state: 'detached' });
+  const depois = await page.evaluate(() => ({ marca: window.__semRecarregar, texto: document.querySelector('[data-quick="notes"]').value }));
+  check('Bloqueio automático após 10 min parado, sem perder o que estava na tela', aindaAberto && travou && atalhoTravado && depois.marca === 1 && depois.texto === 'rascunho em andamento', JSON.stringify({ aindaAberto, travou, atalhoTravado, depois }));
+  // atalho com Option/Alt pela tecla física (no Mac, Option+N não gera a letra "n")
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press('Alt+KeyN');
+  const atalho = await page.locator('dialog[open] h2').innerText().catch(() => '');
+  await page.keyboard.press('Escape');
+  check('Atalho Alt/Option+N abre nova tarefa', /tarefa/i.test(atalho), atalho);
 
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);

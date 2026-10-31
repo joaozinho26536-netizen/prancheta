@@ -40,6 +40,9 @@
     return d < 0 ? `há ${-d} dias` : `em ${d} dias`;
   }
 
+  // no Mac, mostra ⌘ e ⌥ nos atalhos (Cmd+Enter salva; Option+letra é tratado pela tecla física)
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const keyMod = isMac ? '⌘' : 'Ctrl', keyAlt = isMac ? '⌥' : 'Alt';
   const PRIORITIES = [['low', 'Baixa'], ['medium', 'Média'], ['high', 'Alta'], ['urgent', 'Urgente']];
   const TASK_STATUSES = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['waiting', 'Aguardando'], ['done', 'Concluída']];
   const REVISION_STATUSES = [['waiting', 'Aguardando feedback'], ['changes', 'Alterações solicitadas'], ['reviewing', 'Em revisão'], ['approved', 'Aprovado']];
@@ -211,6 +214,6 @@
   window.UI = {
     esc, raw, h, html, fmtDate, fmtTime, fmtDateTime, fmtDur, fmtClock, fmtHours, WEEKDAYS, MONTHS, relDay,
     PRIORITIES, TASK_STATUSES, REVISION_STATUSES, EVENT_TYPES, label, projectStatusName,
-    icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
+    isMac, keyMod, keyAlt, icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
   };
 })();

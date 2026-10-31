@@ -239,6 +239,11 @@
           <div class="field"><label for="s-pw2">Repita a nova senha</label><input id="s-pw2" type="password" name="again" autocomplete="new-password"></div>
         </div><footer><button class="btn primary">Trocar senha</button></footer></form>
 
+      <form class="panel" data-sf="autolock"><h2>Bloqueio automático</h2>
+        <div class="form-grid"><div class="field"><label for="s-al">Bloquear sozinho depois de parado por</label><select id="s-al" name="autoLockMin">${[[0, 'Nunca'], [1, '1 minuto'], [5, '5 minutos'], [10, '10 minutos'], [15, '15 minutos'], [30, '30 minutos'], [60, '1 hora']].map(([a, b]) => h`<option value="${a}"${Number(s.autoLockMin) === a ? U.raw(' selected') : ''}>${b}</option>`)}</select>
+          <small class="hint">Conta o tempo sem mexer no mouse ou no teclado, também com o Mac em repouso. Ao bloquear, nada se perde: formulários, cronômetro e música continuam.</small></div></div>
+        <footer><button class="btn primary">Salvar</button></footer></form>
+
       <section class="panel" id="dados"><h2>Dados e backup</h2>
         <div class="notice">${icon('info')}<p>Tudo fica no armazenamento local (IndexedDB) <strong>deste navegador neste computador</strong>. Não há sincronização em nuvem nem backup automático externo. Outro navegador ou computador não vê estes dados, e limpar os dados do site apaga tudo. <strong>Exporte um backup regularmente</strong> e guarde o arquivo em local seguro.</p></div>
         <p class="small" id="storage-status">Verificando armazenamento…</p>
@@ -251,7 +256,7 @@
         <h3>Demonstração</h3>
         <div class="row"><button class="btn" data-act="load-demo">Carregar dados de demonstração</button><button class="btn" data-act="clear-demo">Remover dados de demonstração</button></div>
         <h3>Atalhos de teclado</h3>
-        <ul class="plain small"><li><kbd>/</kbd> buscar</li><li><kbd>Alt</kbd>+<kbd>N</kbd> nova tarefa · <kbd>Alt</kbd>+<kbd>P</kbd> nova demanda · <kbd>Alt</kbd>+<kbd>A</kbd> nova anotação</li><li><kbd>Alt</kbd>+<kbd>T</kbd> iniciar/parar cronômetro · <kbd>Alt</kbd>+<kbd>B</kbd> pausa · <kbd>Alt</kbd>+<kbd>E</kbd> expediente</li></ul>
+        <ul class="plain small"><li><kbd>/</kbd> buscar</li><li><kbd>${U.keyAlt}</kbd>+<kbd>N</kbd> nova tarefa · <kbd>${U.keyAlt}</kbd>+<kbd>P</kbd> nova demanda · <kbd>${U.keyAlt}</kbd>+<kbd>A</kbd> nova anotação</li><li><kbd>${U.keyAlt}</kbd>+<kbd>T</kbd> iniciar/parar cronômetro · <kbd>${U.keyAlt}</kbd>+<kbd>B</kbd> pausa · <kbd>${U.keyAlt}</kbd>+<kbd>E</kbd> expediente</li></ul>
         <h3 class="txt-bad">Zona de perigo</h3>
         <div class="row"><button class="btn danger ghost" data-act="wipe">${icon('trash')} Apagar todos os dados</button></div>
       </section></div>`;
@@ -314,6 +319,7 @@
       try { await window.Lock.changePassword(String(fd.get('current')), String(fd.get('next'))); f.reset(); U.toast('Senha trocada.', 'good'); } catch (e) { err(e.message); }
       return;
     }
+    if (sec === 'autolock') patch = { autoLockMin: Math.max(0, Number(fd.get('autoLockMin')) || 0) };
     if (sec === 'prefs') {
       const dash = fd.getAll('dash');
       patch = { weekStart: Number(fd.get('weekStart')), calendarView: fd.get('calendarView'), dateFormat: fd.get('dateFormat'), accent: fd.get('accent'), maxTasksPerDay: Math.max(1, Number(fd.get('maxTasksPerDay')) || 5), staleDays: Math.max(1, Number(fd.get('staleDays')) || 5), dashboard: Object.fromEntries(['deadlines', 'goals', 'charts', 'activity'].map(k => [k, dash.includes(k)])) };
