@@ -30,12 +30,12 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const confirmYes = () => page.click(`${dlg} button[value=yes]`);
 
   // 15. navegação: todas as páginas abrem sem erro
-  const routes = ['dashboard', 'projetos', 'tarefas', 'revisoes', 'solicitantes', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'relatorios', 'metas', 'insights', 'configuracoes'];
+  const routes = ['dashboard', 'demandas', 'tarefas', 'revisoes', 'solicitantes', 'calendario', 'tempo', 'pausas', 'referencias', 'anotacoes', 'relatorios', 'metas', 'insights', 'configuracoes'];
   for (const r of routes) await go(r);
   check('Navegação por todas as páginas (vazio)', errors.length === 0, errors.join(' | '));
 
-  // 10. dados inválidos: projeto sem nome e prazo antes do início
-  await go('projetos');
+  // 10. dados inválidos: demanda sem nome e prazo antes do início
+  await go('demandas');
   await page.click('main [data-act="new:projects"] >> nth=0');
   await fill('name', '');
   await submit();
@@ -46,11 +46,11 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const err2 = await text('#f-due-err');
   check('Validação de formulário (obrigatório e datas)', /obrigatório/.test(err1) && /antes do início/.test(err2), `${err1} / ${err2}`);
 
-  // 1. criar projeto (com solicitante)
+  // 1. criar demanda (com solicitante)
   await fill('start', '2026-11-02'); await fill('due', '2026-11-06'); await fill('estimateH', '10'); await fill('category', 'Identidade visual'); await fill('priority', 'high');
   await submit();
   await page.waitForSelector(`${dlg}`, { state: 'detached' });
-  check('Criar projeto', (await page.locator('.card .title-btn', { hasText: 'Identidade Café Lua' }).count()) === 1);
+  check('Criar demanda', (await page.locator('.card .title-btn', { hasText: 'Identidade Café Lua' }).count()) === 1);
 
   // solicitante
   await go('solicitantes');
@@ -61,8 +61,8 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await fill('email', 'contato@cafelua.com'); await submit(); await page.waitForSelector(dlg, { state: 'detached' });
   check('Solicitante com validação de e-mail', /inválido/.test(emailErr) && (await page.locator('td .title-btn', { hasText: 'Café Lua' }).count()) === 1, emailErr + ' / ' + await page.locator('main').innerText());
 
-  // editar projeto: vincular solicitante
-  await go('projetos');
+  // editar demanda: vincular solicitante
+  await go('demandas');
   await page.click('.card .title-btn:has-text("Identidade Café Lua")');
   const pid = (await page.evaluate(() => location.hash)).split('/')[1];
   await page.click('[data-act^="edit:projects"]');
@@ -71,7 +71,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await submit();
   await page.waitForSelector(`${dlg}`, { state: 'detached' });
   const hist = await text('.history');
-  check('Editar projeto e histórico de alterações', /Solicitante/.test(hist) && /Café Lua/.test(await text('.page-head .sub')), hist.slice(0, 80));
+  check('Editar demanda e histórico de alterações', /Solicitante/.test(hist) && /Café Lua/.test(await text('.page-head .sub')), hist.slice(0, 80));
 
   // 2. tarefas: criar duas, concluir uma
   for (const [title, est] of [['Esboços do símbolo', '2'], ['Paleta de cores', '1']]) {
@@ -79,16 +79,16 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
     await fill('title', title); await fill('estimateH', est); await fill('due', '2026-11-04');
     await submit(); await page.waitForSelector(`${dlg}`, { state: 'detached' });
   }
-  check('Criar tarefas ligadas ao projeto', (await page.locator('.task-row').count()) === 2);
+  check('Criar tarefas ligadas ao demanda', (await page.locator('.task-row').count()) === 2);
   await page.click('.task-row:has-text("Paleta de cores") input[type=checkbox]');
   await sleep(100);
   const prog = await page.locator('.stat:has-text("Progresso") .stat-value').innerText();
-  check('Concluir tarefa e progresso do projeto', prog === '50%', prog);
+  check('Concluir tarefa e progresso da demanda', prog === '50%', prog);
 
   // 3. dashboard
   await go('dashboard');
   const dash = await text('.stats-panel');
-  check('Indicadores do dashboard', /Projetos em andamento\s*1/.test(dash) && /Tarefas pendentes\s*1/.test(dash) && /Concluídas hoje\s*1/.test(dash), dash.replace(/\s+/g, ' '));
+  check('Indicadores do dashboard', /Demandas em andamento\s*1/.test(dash) && /Tarefas pendentes\s*1/.test(dash) && /Concluídas hoje\s*1/.test(dash), dash.replace(/\s+/g, ' '));
 
   // 6, 7, 8. expediente, cronômetro na tarefa, pausa, recarregar
   await go('tempo');
@@ -129,15 +129,15 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await sleep(100);
   const today = (await text('.panel:has(h2:text-is("Hoje")) .stats-panel')).replace(/\s+/g, ' ');
   // trabalhado: 09:00-09:30 (30) + 09:30-10:30 menos pausa 15 = 45 → 75 min = 1 h 15
-  check('Cálculo de horas e pausas (pausa não conta como trabalho)', /Efetivamente trabalhado 1 h 15/.test(today) && /Pausas 15 min/.test(today) && /Tempo de expediente 1 h 30/.test(today) && /Em projetos 1 h 15/.test(today), today);
+  check('Cálculo de horas e pausas (pausa não conta como trabalho)', /Efetivamente trabalhado 1 h 15/.test(today) && /Pausas 15 min/.test(today) && /Tempo de expediente 1 h 30/.test(today) && /Em demandas 1 h 15/.test(today), today);
   check('Temporizador de pausa mostra tempo restante', /restantes|passou/.test(left), left);
-  await go('projeto/' + pid);
+  await go('demanda/' + pid);
   const taskTime = await text('.task-row:has-text("Esboços do símbolo") .tr-time');
-  check('Associação tarefa → projeto → tempo', /1 h 15/.test(taskTime) && /1 h 15/.test(await text('.stat:has-text("Horas") .stat-value')), taskTime);
+  check('Associação tarefa → demanda → tempo', /1 h 15/.test(taskTime) && /1 h 15/.test(await text('.stat:has-text("Horas") .stat-value')), taskTime);
 
   // 5. persistência após recarregar
   await page.reload(); await page.waitForSelector('#nav a');
-  await go('projetos');
+  await go('demandas');
   check('Persistência após recarregar', (await page.locator('.card .title-btn', { hasText: 'Identidade Café Lua' }).count()) === 1);
 
   // 4. filtros e busca
@@ -165,7 +165,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   // 14. relatórios refletem os dados
   await go('relatorios');
   const rep1 = (await text('.stats-panel')).replace(/\s+/g, ' ');
-  await go('projeto/' + pid);
+  await go('demanda/' + pid);
   await page.click('.task-row:has-text("Esboços do símbolo") input[type=checkbox]');
   await sleep(100);
   await go('relatorios');
@@ -196,12 +196,12 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const counts = await page.evaluate(() => ({ p: Store.S.projects.length, t: Store.S.tasks.length, s: Store.S.sessions.length }));
   check('Importação mesclada sem duplicar', counts.p === 1 && counts.t === 2 && counts.s === 2, JSON.stringify(counts));
 
-  // excluir projeto (confirmando) e restaurar com "substituir"
-  await go('projeto/' + pid);
+  // excluir demanda (confirmando) e restaurar com "substituir"
+  await go('demanda/' + pid);
   await page.click('main [data-act^="del:projects"]'); await confirmYes();
   await sleep(100);
   const afterDel = await page.evaluate(() => ({ p: Store.S.projects.length, t: Store.S.tasks.filter(t => t.projectId).length, tasks: Store.S.tasks.length }));
-  check('Excluir projeto (tarefas ficam, sem projeto)', afterDel.p === 0 && afterDel.t === 0 && afterDel.tasks === 2, JSON.stringify(afterDel));
+  check('Excluir demanda (tarefas ficam, sem demanda)', afterDel.p === 0 && afterDel.t === 0 && afterDel.tasks === 2, JSON.stringify(afterDel));
   await go('configuracoes');
   await page.setInputFiles('#import-file', file);
   await page.check('[name=import-mode][value=replace]');

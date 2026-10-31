@@ -108,7 +108,7 @@
   function addByHour(arr, [a, b]) {
     while (a < b) { const d = new Date(a); const end = Math.min(b, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime()); arr[d.getHours()] += end - a; a = end; }
   }
-  // tempo trabalhado total (sem recorte) numa tarefa / projeto
+  // tempo trabalhado total (sem recorte) numa tarefa / demanda
   function spentMs(st, key, id, now) {
     return st.sessions.filter(s => s[key] === id).reduce((t, s) => t + total(workedIntervals(s, st.breaks, now)), 0);
   }
@@ -119,7 +119,7 @@
     return total(ivs);
   }
 
-  // ---------- projetos e tarefas ----------
+  // ---------- demandas e tarefas ----------
   const indexBy = (arr, k = 'id') => Object.fromEntries(arr.map(x => [x[k], x]));
   function statusKind(settings, id) { const s = settings.projectStatuses.find(x => x.id === id); return s ? s.kind : 'open'; }
   const isClosed = (settings, p) => ['done', 'cancelled'].includes(statusKind(settings, p.status));
@@ -136,7 +136,7 @@
   const GOAL_METRICS = {
     hours_week: { label: 'Horas trabalhadas na semana', period: 'week', unit: 'h' },
     hours_month: { label: 'Horas trabalhadas no mês', period: 'month', unit: 'h' },
-    projects_month: { label: 'Projetos concluídos no mês', period: 'month', unit: '' },
+    projects_month: { label: 'Demandas concluídas no mês', period: 'month', unit: '' },
     tasks_week: { label: 'Tarefas concluídas na semana', period: 'week', unit: '' },
     priority_tasks_week: { label: 'Tarefas altas/urgentes concluídas na semana', period: 'week', unit: '' },
     breaks_week: { label: 'Pausas registradas na semana', period: 'week', unit: '' },
@@ -172,7 +172,7 @@
     const sessions = st.sessions.filter(s => !filtered || pIds.has(s.projectId));
     const tasks = st.tasks.filter(t => !filtered || pIds.has(t.projectId));
     const sum = timeSummary({ ...st, sessions }, f.from, f.to, now);
-    // pausas e expediente não pertencem a projeto: só entram no relatório sem filtro de projeto
+    // pausas e expediente não pertencem a demanda: só entram no relatório sem filtro de demanda
     if (filtered) { sum.workdayMs = null; sum.breakMs = null; }
     const inRange = ts => ts >= f.from && ts < f.to;
     const doneTasks = tasks.filter(t => t.status === 'done' && t.completedAt && inRange(t.completedAt));
@@ -215,8 +215,8 @@
     for (const p of activeProjects) {
       if (!p.due) continue;
       const d = daysBetween(today, p.due);
-      if (d < 0) add('bad', 'Prazos', `“${p.name}” está atrasado`, `Prazo era ${p.due} (${-d} dia(s) atrás). Progresso: ${Math.round(projectProgress(s, p, st.tasks) * 100)}%.`, 'Projeto não concluído com prazo anterior a hoje.');
-      else if (d <= 3) add('warn', 'Prazos', `“${p.name}” vence em ${d === 0 ? 'hoje' : d + ' dia(s)'}`, `Progresso: ${Math.round(projectProgress(s, p, st.tasks) * 100)}%; ${st.tasks.filter(t => t.projectId === p.id && t.status !== 'done').length} tarefa(s) aberta(s).`, 'Projeto ativo com prazo nos próximos 3 dias.');
+      if (d < 0) add('bad', 'Prazos', `“${p.name}” está atrasada`, `Prazo era ${p.due} (${-d} dia(s) atrás). Progresso: ${Math.round(projectProgress(s, p, st.tasks) * 100)}%.`, 'Demanda não concluída com prazo anterior a hoje.');
+      else if (d <= 3) add('warn', 'Prazos', `“${p.name}” vence em ${d === 0 ? 'hoje' : d + ' dia(s)'}`, `Progresso: ${Math.round(projectProgress(s, p, st.tasks) * 100)}%; ${st.tasks.filter(t => t.projectId === p.id && t.status !== 'done').length} tarefa(s) aberta(s).`, 'Demanda ativa com prazo nos próximos 3 dias.');
     }
     const lateTasks = openTasks.filter(t => taskOverdue(t, today));
     if (lateTasks.length) add('bad', 'Prazos', `${lateTasks.length} tarefa(s) atrasada(s)`, lateTasks.slice(0, 5).map(t => t.title).join(' · '), 'Tarefa aberta com prazo anterior a hoje.');
@@ -248,8 +248,8 @@
     const sum30 = timeSummary(st, addDays(startOfDay(now), -30), now, now);
     if (sum30.projectMs >= 5 * HOUR) {
       const cats = Object.entries(sum30.byCategory).sort((a, b) => b[1] - a[1]);
-      add('info', 'Tempo', `“${cats[0][0]}” concentrou ${Math.round(cats[0][1] / sum30.projectMs * 100)}% do tempo em projetos`, cats.slice(0, 4).map(([c, ms]) => `${c}: ${f1(ms / HOUR)} h`).join(' · '), 'Horas registradas em projetos nos últimos 30 dias, por categoria.');
-    } else lack.push('Categorias: são precisas ao menos 5 h registradas em projetos nos últimos 30 dias.');
+      add('info', 'Tempo', `“${cats[0][0]}” concentrou ${Math.round(cats[0][1] / sum30.projectMs * 100)}% do tempo em demandas`, cats.slice(0, 4).map(([c, ms]) => `${c}: ${f1(ms / HOUR)} h`).join(' · '), 'Horas registradas em demandas nos últimos 30 dias, por categoria.');
+    } else lack.push('Categorias: são precisas ao menos 5 h registradas em demandas nos últimos 30 dias.');
 
     // 8. metas
     for (const g of st.goals) {
@@ -276,11 +276,11 @@
     // 10. aguardando aprovação há muito tempo
     for (const r of st.revisions.filter(r => r.status === 'waiting' && r.sentAt)) {
       const d = daysBetween(r.sentAt, today);
-      if (d >= s.staleDays) { const p = st.projects.find(x => x.id === r.projectId); add('warn', 'Aprovações', `Versão ${r.version} de “${p ? p.name : 'projeto'}” aguarda retorno há ${d} dias`, 'Considere enviar um lembrete ao solicitante.', `Revisão em “aguardando feedback” há ${s.staleDays} dias ou mais.`); }
+      if (d >= s.staleDays) { const p = st.projects.find(x => x.id === r.projectId); add('warn', 'Aprovações', `Versão ${r.version} de “${p ? p.name : 'demanda'}” aguarda retorno há ${d} dias`, 'Considere enviar um lembrete ao solicitante.', `Revisão em “aguardando feedback” há ${s.staleDays} dias ou mais.`); }
     }
     for (const p of activeProjects.filter(p => statusKind(s, p.status) === 'waiting')) {
       const since = p.statusSince ? daysBetween(isoDate(p.statusSince), today) : 0;
-      if (since >= s.staleDays) add('warn', 'Aprovações', `“${p.name}” aguarda aprovação há ${since} dias`, 'Projeto parado esperando o solicitante.', `Projeto em status de espera há ${s.staleDays} dias ou mais.`);
+      if (since >= s.staleDays) add('warn', 'Aprovações', `“${p.name}” aguarda aprovação há ${since} dias`, 'Demanda parada esperando o solicitante.', `Demanda em status de espera há ${s.staleDays} dias ou mais.`);
     }
 
     // 11. horários com mais horas registradas
@@ -390,7 +390,7 @@
     projectStatuses: [
       { id: 'planning', name: 'Planejamento', kind: 'open' }, { id: 'waiting_start', name: 'Aguardando início', kind: 'open' },
       { id: 'doing', name: 'Em andamento', kind: 'active' }, { id: 'approval', name: 'Aguardando aprovação', kind: 'waiting' },
-      { id: 'review', name: 'Em revisão', kind: 'active' }, { id: 'done', name: 'Concluído', kind: 'done' }, { id: 'cancelled', name: 'Cancelado', kind: 'cancelled' }],
+      { id: 'review', name: 'Em revisão', kind: 'active' }, { id: 'done', name: 'Concluída', kind: 'done' }, { id: 'cancelled', name: 'Cancelada', kind: 'cancelled' }],
     refCategories: ['Branding', 'Tipografia', 'Composição', 'Cores', 'Campanhas', 'Layouts', 'Geral'],
     noteKinds: ['Ideia', 'Briefing', 'Instrução', 'Feedback', 'Decisão criativa', 'Pendência', 'Importante'],
   };

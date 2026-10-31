@@ -24,8 +24,8 @@
 
   const FORMS = {
     projects: {
-      title: 'projeto', fields: () => [
-        { k: 'name', label: 'Nome do projeto', required: true, full: true },
+      title: 'demanda', fields: () => [
+        { k: 'name', label: 'Nome da demanda', required: true, full: true },
         { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients },
         { k: 'category', label: 'Categoria', type: 'select', options: opt.categories },
         { k: 'status', label: 'Status', type: 'select', options: opt.pstatus, required: true },
@@ -48,8 +48,8 @@
     tasks: {
       title: 'tarefa', fields: () => [
         { k: 'title', label: 'Título', required: true, full: true },
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
-        { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients, hint: 'Vazio: usa o solicitante do projeto.' },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
+        { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients, hint: 'Vazio: usa o solicitante da demanda.' },
         { k: 'status', label: 'Status', type: 'select', options: U.TASK_STATUSES, required: true },
         { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
         { k: 'date', label: 'Início previsto', type: 'date' }, { k: 'time', label: 'Horário programado', type: 'time' },
@@ -85,7 +85,7 @@
         { k: 'type', label: 'Tipo', type: 'select', options: U.EVENT_TYPES, required: true },
         { k: 'date', label: 'Data', type: 'date', required: true },
         { k: 'time', label: 'Início', type: 'time' }, { k: 'endTime', label: 'Término', type: 'time' },
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
         { k: 'reminderMin', label: 'Lembrar (minutos antes)', type: 'number' },
         { k: 'notes', label: 'Observações', type: 'textarea', full: true },
       ], defaults: () => ({ type: 'meeting', date: today() }),
@@ -93,7 +93,7 @@
     },
     revisions: {
       title: 'revisão', fields: () => [
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects, required: true },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects, required: true },
         { k: 'version', label: 'Versão do material', required: true, hint: 'Ex.: v2, R3, “versão final”.' },
         { k: 'sentAt', label: 'Data de envio', type: 'date' },
         { k: 'status', label: 'Status', type: 'select', options: U.REVISION_STATUSES, required: true },
@@ -108,7 +108,7 @@
         { k: 'name', label: 'Nome', required: true, full: true },
         { k: 'category', label: 'Categoria', type: 'select', options: () => S.settings.refCategories.map(c => [c, c]) },
         { k: 'url', label: 'Link externo', type: 'url' },
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
         { k: 'tags', label: 'Palavras-chave', type: 'tags' },
         { k: 'palette', label: 'Paleta de cores', type: 'tags', hint: 'Códigos hexadecimais, ex.: #1a1a1a, #f2c14e' },
         { k: 'typography', label: 'Tipografia' },
@@ -126,7 +126,7 @@
         { k: 'pinned', label: '', type: 'checkbox', text: 'Fixar no topo' },
         { k: 'body', label: 'Conteúdo', type: 'textarea', full: true, rows: 8 },
         { k: 'tags', label: 'Etiquetas', type: 'tags' },
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
         { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients },
       ], defaults: () => ({ kind: 'Ideia', tags: [] }),
     },
@@ -158,15 +158,15 @@
     });
   };
   const DELETE_TEXT = {
-    projects: 'As tarefas, sessões, notas, referências e eventos ligados a ele continuam existindo, sem projeto. As revisões do projeto serão excluídas.',
-    clients: 'Projetos, tarefas e notas deste solicitante continuam existindo, sem solicitante.',
+    projects: 'As tarefas, sessões, notas, referências e eventos ligados a ele continuam existindo, sem demanda. As revisões da demanda serão excluídas.',
+    clients: 'Demandas, tarefas e notas deste solicitante continuam existindo, sem solicitante.',
     tasks: 'As sessões de tempo desta tarefa continuam registradas, sem tarefa.',
   };
   App.del = async function (type, id) {
     const r = St.get(type, id); if (!r) return false;
     const name = r.name || r.title || r.version || '';
     if (!await U.ask({ title: `Excluir ${(St.LABELS[type] || 'registro').toLowerCase()}?`, text: `${name ? '“' + name + '” será excluído(a). ' : ''}${DELETE_TEXT[type] || ''} Esta ação não pode ser desfeita.`, ok: 'Excluir', danger: true })) return false;
-    try { await St.remove(type, id); U.toast('Excluído.', 'good'); if (type === 'projects' && location.hash.startsWith('#projeto/')) go('projetos'); return true; } catch (e) { U.fail(e); return false; }
+    try { await St.remove(type, id); U.toast('Excluído.', 'good'); if (type === 'projects' && location.hash.startsWith('#demanda/')) go('demandas'); return true; } catch (e) { U.fail(e); return false; }
   };
   App.toggleTask = async function (id) {
     const t = St.get('tasks', id); if (!t) return;
@@ -206,7 +206,7 @@
     } catch (e) { U.fail(e); }
   };
   function closeSession(s, t) { return { ...s, end: t, pauses: (s.pauses || []).map(p => p.end ? p : { ...p, end: t }) }; }
-  // pergunta projeto/tarefa e inicia uma sessão (só uma ativa por vez)
+  // pergunta demanda/tarefa e inicia uma sessão (só uma ativa por vez)
   App.startSession = async function (pre = {}) {
     await St.reload();
     const cur = active.session();
@@ -214,12 +214,12 @@
     U.form({
       title: 'Iniciar cronômetro', submit: 'Iniciar', value: pre,
       fields: [
-        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.openProjects },
+        { k: 'projectId', label: 'Demanda', type: 'select', options: opt.openProjects },
         { k: 'taskId', label: 'Tarefa', type: 'select', options: opt.tasks },
         { k: 'note', label: 'O que você vai fazer (opcional)', full: true },
         ...(active.workday() ? [] : [{ k: 'withWorkday', type: 'checkbox', text: 'Iniciar o expediente também', full: true }]),
       ],
-      check: v => { const t = v.taskId && St.get('tasks', v.taskId); return t && v.projectId && t.projectId && t.projectId !== v.projectId ? { taskId: 'Esta tarefa pertence a outro projeto.' } : null; },
+      check: v => { const t = v.taskId && St.get('tasks', v.taskId); return t && v.projectId && t.projectId && t.projectId !== v.projectId ? { taskId: 'Esta tarefa pertence a outra demanda.' } : null; },
       onSave: async v => {
         const t = now();
         const c2 = active.session(); if (c2) await St.save('sessions', closeSession(c2, t), { verb: 'encerrada' });
@@ -268,7 +268,7 @@
     const base = old ? old.start : at9();
     const v = old ? { date: M.isoDate(old.start), startT: U.fmtTime(old.start), endT: old.end ? U.fmtTime(old.end) : '', endDate: old.end ? M.isoDate(old.end) : '', ...old } : { date: M.isoDate(base), type: S.settings.breakTypes[0].id };
     const fields = [{ k: 'date', label: 'Data de início', type: 'date', required: true }, { k: 'startT', label: 'Início', type: 'time', required: true }, { k: 'endT', label: 'Fim', type: 'time', hint: old && !old.end ? 'Vazio: continua em andamento.' : '' }, { k: 'endDate', label: 'Data do fim (se outro dia)', type: 'date' }];
-    if (type === 'sessions') fields.push({ k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects }, { k: 'taskId', label: 'Tarefa', type: 'select', options: () => S.tasks.map(t => [t.id, t.title]) }, { k: 'note', label: 'Descrição', full: true });
+    if (type === 'sessions') fields.push({ k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects }, { k: 'taskId', label: 'Tarefa', type: 'select', options: () => S.tasks.map(t => [t.id, t.title]) }, { k: 'note', label: 'Descrição', full: true });
     if (type === 'breaks') fields.push({ k: 'type', label: 'Tipo de pausa', type: 'select', required: true, options: () => S.settings.breakTypes.map(b => [b.id, b.name]) }, { k: 'note', label: 'Observação', full: true });
     U.form({
       title: (old ? 'Editar ' : 'Registrar ') + { sessions: 'sessão de trabalho', breaks: 'pausa', workdays: 'expediente' }[type], fields, value: v,
@@ -296,7 +296,7 @@
 
   // ---------- rotas ----------
   const ROUTES = [
-    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['projetos', 'Projetos', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['solicitantes', 'Solicitantes', 'users'],
+    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['demandas', 'Demandas', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['solicitantes', 'Solicitantes', 'users'],
     ['calendario', 'Calendário', 'calendar', 'Tempo'], ['tempo', 'Controle de tempo', 'clock'], ['pausas', 'Pausas', 'coffee'],
     ['referencias', 'Referências criativas', 'image', 'Criação'], ['anotacoes', 'Anotações', 'note'],
     ['relatorios', 'Relatórios', 'chart', 'Análise'], ['metas', 'Metas', 'target'], ['insights', 'Insights e sugestões', 'bulb'],
@@ -314,8 +314,8 @@
     try { main.innerHTML = U.html(view.render(id)); }
     catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
     if (view.mount) view.mount(main, id);
-    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'projeto' ? 'projetos' : r === 'solicitante' ? 'solicitantes' : r)));
-    const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'projeto' ? 'Projeto' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
+    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'demanda' ? 'demandas' : r === 'solicitante' ? 'solicitantes' : r)));
+    const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'demanda' ? 'Demanda' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
     document.title = title + ' · Prancheta';
     renderDemoBanner(); tick();
     if (lastRoute !== location.hash) { window.scrollTo(0, 0); document.getElementById('main').focus({ preventScroll: true }); } else window.scrollTo(0, keep);
@@ -362,7 +362,7 @@
     } else if (s) {
       const ms = M.total(M.workedIntervals(s, S.breaks, t)), p = St.get('projects', s.projectId), tk = St.get('tasks', s.taskId);
       const paused = App.isPaused(s);
-      chip.innerHTML = U.html(h`<span class="dot ${paused ? 'warn' : 'good'}"></span><span class="mono">${U.fmtClock(ms)}</span><span class="chip-label">${tk ? tk.title : p ? p.name : 'Sem projeto'}</span><button class="icon-btn" data-act="${paused ? 'session-resume' : 'session-pause'}" aria-label="${paused ? 'Retomar' : 'Pausar sessão'}">${icon(paused ? 'play' : 'pause')}</button><button class="icon-btn" data-act="session-stop" aria-label="Encerrar sessão">${icon('stop')}</button>`);
+      chip.innerHTML = U.html(h`<span class="dot ${paused ? 'warn' : 'good'}"></span><span class="mono">${U.fmtClock(ms)}</span><span class="chip-label">${tk ? tk.title : p ? p.name : 'Sem demanda'}</span><button class="icon-btn" data-act="${paused ? 'session-resume' : 'session-pause'}" aria-label="${paused ? 'Retomar' : 'Pausar sessão'}">${icon(paused ? 'play' : 'pause')}</button><button class="icon-btn" data-act="session-stop" aria-label="Encerrar sessão">${icon('stop')}</button>`);
     } else chip.innerHTML = U.html(h`${w ? h`<span class="dot good"></span><span>Expediente desde ${U.fmtTime(w.start)}</span>` : ''}<button class="btn small" data-act="session-start">${icon('play')} Iniciar cronômetro</button>`);
     document.querySelectorAll('[data-live]').forEach(el => { const f = LIVE[el.dataset.live]; if (f) el.textContent = f(el); });
   }
@@ -408,7 +408,7 @@
     if (q.length < 2) return [];
     const has = (...xs) => xs.flat().filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q);
     const out = [];
-    S.projects.forEach(p => has(p.name, p.description, p.category, p.notes) && out.push(['Projeto', p.name, 'go:projeto:' + p.id]));
+    S.projects.forEach(p => has(p.name, p.description, p.category, p.notes) && out.push(['Demanda', p.name, 'go:demanda:' + p.id]));
     S.tasks.forEach(t => has(t.title, t.description, t.notes, (t.checklist || []).map(c => c.text)) && out.push(['Tarefa', t.title, 'edit:tasks:' + t.id]));
     S.clients.forEach(c => has(c.name, c.contactName, c.email, c.notes) && out.push(['Solicitante', c.name, 'go:solicitante:' + c.id]));
     S.notes.forEach(n => has(n.title, n.body, n.tags) && out.push(['Anotação', n.title, 'edit:notes:' + n.id]));
@@ -536,7 +536,7 @@
     nav.innerHTML = U.html(ROUTES.map(([r, t, ic, group]) => h`${group ? h`<p class="nav-group">${group}</p>` : ''}<a href="#${r}" data-r="${r}">${icon(ic)}<span>${t}</span></a>`));
     const d = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
     document.getElementById('today').textContent = d[0].toUpperCase() + d.slice(1);
-    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Projeto', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
+    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
     document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });

@@ -1,4 +1,4 @@
-// Telas de trabalho: Dashboard, Projetos (+ detalhe), Tarefas, Revisões e Solicitantes (+ detalhe).
+// Telas de trabalho: Dashboard, Demandas (+ detalhe), Tarefas, Revisões e Solicitantes (+ detalhe).
 (function () {
   'use strict';
   const M = window.Model, U = window.UI, St = window.Store, S = St.S, App = window.App;
@@ -34,7 +34,7 @@
       const hasAny = S.projects.length || S.tasks.length || S.sessions.length;
       const greet = (new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() < 18 ? 'Boa tarde' : 'Boa noite') + (set.name ? ', ' + set.name : '');
       const quick = h`<div class="quick">
-        <button class="btn" data-act="new:projects">${icon('folder')} Novo projeto</button>
+        <button class="btn" data-act="new:projects">${icon('folder')} Nova demanda</button>
         <button class="btn" data-act="new:tasks">${icon('check')} Nova tarefa</button>
         <button class="btn" data-act="workday">${icon('briefcase')} ${w ? 'Encerrar expediente' : 'Iniciar expediente'}</button>
         <button class="btn" data-act="${s ? 'session-stop' : 'session-start'}">${icon(s ? 'stop' : 'play')} ${s ? 'Parar cronômetro' : 'Iniciar cronômetro'}</button>
@@ -43,13 +43,13 @@
       const head = App.page(greet, new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
       if (!hasAny) return h`${head}${quick}${storageNotice()}
         <section class="panel welcome"><h2>Comece por aqui</h2>
-          <ol class="steps"><li><strong>Cadastre um projeto</strong> com solicitante, categoria e prazo.</li><li><strong>Crie as tarefas</strong> do projeto, com estimativa de tempo.</li><li><strong>Inicie o expediente e o cronômetro</strong> ao trabalhar; registre suas pausas.</li></ol>
+          <ol class="steps"><li><strong>Cadastre uma demanda</strong> com solicitante, categoria e prazo.</li><li><strong>Crie as tarefas</strong> da demanda, com estimativa de tempo.</li><li><strong>Inicie o expediente e o cronômetro</strong> ao trabalhar; registre suas pausas.</li></ol>
           <p class="muted">Os indicadores, gráficos, relatórios e insights aparecem conforme você registra o seu trabalho.</p>
-          <div class="row"><button class="btn primary" data-act="new:projects">${icon('plus')} Criar o primeiro projeto</button><button class="btn ghost" data-act="load-demo">Ver com dados de demonstração</button></div></section>`;
+          <div class="row"><button class="btn primary" data-act="new:projects">${icon('plus')} Criar a primeira demanda</button><button class="btn ghost" data-act="load-demo">Ver com dados de demonstração</button></div></section>`;
 
       const stat = (label, value, hint, tone = '') => h`<div class="stat"><span class="stat-label">${label}</span><span class="stat-value ${tone}">${value}</span>${hint ? h`<span class="stat-hint">${hint}</span>` : ''}</div>`;
       const deadlines = [
-        ...S.projects.filter(p => p.due && !M.isClosed(set, p) && M.daysBetween(td, p.due) <= 14).map(p => ({ d: p.due, kind: 'Projeto', title: p.name, act: 'go:projeto:' + p.id })),
+        ...S.projects.filter(p => p.due && !M.isClosed(set, p) && M.daysBetween(td, p.due) <= 14).map(p => ({ d: p.due, kind: 'Demanda', title: p.name, act: 'go:demanda:' + p.id })),
         ...pending.filter(x => x.due && M.daysBetween(td, x.due) <= 14).map(x => ({ d: x.due, kind: 'Tarefa', title: x.title, act: 'edit:tasks:' + x.id, sub: pname(x.projectId) })),
       ].sort((a, b) => a.d.localeCompare(b.d)).slice(0, 8);
       const agenda = [
@@ -60,29 +60,29 @@
       const weekGoals = S.goals.filter(g => (M.GOAL_METRICS[g.metric] || {}).period === 'week');
       // gráficos
       const byProj = Object.entries(weekS.byProject).map(([id, ms]) => ({ label: pname(id) || '—', value: ms })).sort((a, b) => b.value - a.value).slice(0, 6);
-      if (weekS.unclassifiedMs) byProj.push({ label: 'Sem projeto', value: weekS.unclassifiedMs });
+      if (weekS.unclassifiedMs) byProj.push({ label: 'Sem demanda', value: weekS.unclassifiedMs });
       const days14 = Array.from({ length: 14 }, (_, i) => M.addDays(M.startOfDay(t), i - 13));
       const sum14 = M.timeSummary(S, days14[0], M.addDays(M.startOfDay(t), 1), t);
       const statusCount = U.TASK_STATUSES.map(([k, l]) => [k, l, S.tasks.filter(x => x.status === k).length]);
       const totalTasks = S.tasks.length || 1;
       return h`${head}${quick}${storageNotice()}
       <section class="panel stats-panel" aria-label="Indicadores">
-        ${stat('Projetos em andamento', doing.length)}${stat('Projetos concluídos', done.length)}${stat('Projetos atrasados', late.length, '', late.length ? 'txt-bad' : '')}
+        ${stat('Demandas em andamento', doing.length)}${stat('Demandas concluídas', done.length)}${stat('Demandas atrasadas', late.length, '', late.length ? 'txt-bad' : '')}
         ${stat('Tarefas pendentes', pending.length)}${stat('Concluídas hoje', doneToday.length)}
         ${stat('Trabalhado hoje', U.fmtDur(dayS.workedMs), w ? 'expediente aberto' : '')}${stat('Trabalhado na semana', U.fmtDur(weekS.workedMs), 'jornada: ' + M.f1(M.weeklyCapacityH(set)) + ' h')}${stat('Pausas hoje', U.fmtDur(dayS.breakMs))}
       </section>
       <div class="grid-2">
         ${set.dashboard.deadlines ? h`<section class="panel"><header class="panel-head"><h2>Próximos prazos</h2><a href="#calendario" class="link">Calendário</a></header>
-          ${deadlines.length ? h`<ul class="rows">${deadlines.map(x => h`<li><button class="row-btn" data-act="${x.act}"><span class="badge muted">${x.kind}</span><span class="grow ellipsis">${x.title}${x.sub ? h` <span class="muted">· ${x.sub}</span>` : ''}</span>${dueText(x.d)}</button></li>`)}</ul>` : U.empty('Nenhum prazo nos próximos 14 dias', 'Prazos de projetos e tarefas aparecem aqui.')}</section>
+          ${deadlines.length ? h`<ul class="rows">${deadlines.map(x => h`<li><button class="row-btn" data-act="${x.act}"><span class="badge muted">${x.kind}</span><span class="grow ellipsis">${x.title}${x.sub ? h` <span class="muted">· ${x.sub}</span>` : ''}</span>${dueText(x.d)}</button></li>`)}</ul>` : U.empty('Nenhum prazo nos próximos 14 dias', 'Prazos de demandas e tarefas aparecem aqui.')}</section>
         <section class="panel"><header class="panel-head"><h2>Próximos compromissos</h2><button class="link" data-act="new:events">Novo evento</button></header>
           ${agenda.length ? h`<ul class="rows">${agenda.map(x => h`<li><button class="row-btn" data-act="${x.act}"><span class="when">${U.fmtDate(x.d, { short: true })}${x.time ? ' ' + x.time : ''}</span><span class="grow ellipsis">${x.title}</span><span class="badge muted">${x.kind}</span></button></li>`)}</ul>` : U.empty('Agenda livre nos próximos 7 dias', 'Reuniões, entregas e tarefas com data aparecem aqui.')}</section>` : ''}
-        <section class="panel"><header class="panel-head"><h2>Projetos prioritários</h2><a href="#projetos" class="link">Todos</a></header>
-          ${priority.length ? h`<ul class="rows">${priority.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="grow"><span class="ellipsis block">${p.name}</span>${U.meter(M.projectProgress(set, p, S.tasks))}</span>${U.priorityBadge(p.priority)}${dueText(p.due)}</button></li>`)}</ul>` : U.empty('Nenhum projeto de prioridade alta ou urgente', 'Projetos ativos com prioridade alta ou urgente aparecem aqui.')}</section>
+        <section class="panel"><header class="panel-head"><h2>Demandas prioritárias</h2><a href="#demandas" class="link">Todas</a></header>
+          ${priority.length ? h`<ul class="rows">${priority.map(p => h`<li><button class="row-btn" data-act="go:demanda:${p.id}"><span class="grow"><span class="ellipsis block">${p.name}</span>${U.meter(M.projectProgress(set, p, S.tasks))}</span>${U.priorityBadge(p.priority)}${dueText(p.due)}</button></li>`)}</ul>` : U.empty('Nenhuma demanda de prioridade alta ou urgente', 'Demandas ativas com prioridade alta ou urgente aparecem aqui.')}</section>
         ${set.dashboard.goals ? h`<section class="panel"><header class="panel-head"><h2>Metas da semana</h2><a href="#metas" class="link">Metas</a></header>
           ${weekGoals.length ? h`<ul class="rows">${weekGoals.map(g => { const pr = M.goalProgress(g, S, t); return h`<li class="goal-row"><span class="grow">${g.title}</span><span class="muted mono">${M.f1(pr.value)} / ${g.target}</span>${U.meter(pr.ratio, pr.ratio >= 1 ? 'good' : '')}</li>`; })}</ul>` : U.empty('Nenhuma meta semanal', 'Defina, por exemplo, quantas horas quer trabalhar por semana.', h`<button class="btn small" data-act="new:goals">Criar meta</button>`)}</section>` : ''}
       </div>
       ${set.dashboard.charts ? h`<div class="grid-3">
-        <section class="panel"><header class="panel-head"><h2>Horas por projeto</h2><span class="muted">esta semana</span></header>${U.hbars(byProj, U.fmtDur)}</section>
+        <section class="panel"><header class="panel-head"><h2>Horas por demanda</h2><span class="muted">esta semana</span></header>${U.hbars(byProj, U.fmtDur)}</section>
         <section class="panel"><header class="panel-head"><h2>Andamento das tarefas</h2><span class="muted">${S.tasks.length} no total</span></header>
           ${S.tasks.length ? h`<div class="stack-bar">${statusCount.filter(x => x[2]).map(([k, l, n]) => h`<i class="st-${k}" style="width:${n / totalTasks * 100}%" title="${l}: ${n}"></i>`)}</div><ul class="legend">${statusCount.map(([k, l, n]) => h`<li><i class="st-${k}"></i>${l} <strong>${n}</strong></li>`)}</ul>` : h`<p class="muted chart-empty">Nenhuma tarefa cadastrada.</p>`}</section>
         <section class="panel"><header class="panel-head"><h2>Horas por dia</h2><span class="muted">14 dias</span></header>${U.bars(days14.map(d => ({ label: new Date(d).getDate(), value: (sum14.byDay[M.isoDate(d)] || 0) / M.HOUR })), { fmt: v => M.f1(v) + ' h', unit: 'h', height: 160, highlight: (d, i) => i === 13 })}</section>
@@ -111,37 +111,37 @@
     const prog = M.projectProgress(S.settings, p, S.tasks), spent = M.spentMs(S, 'projectId', p.id, now()), closed = M.isClosed(S.settings, p);
     const open = S.tasks.filter(t => t.projectId === p.id && t.status !== 'done').length;
     return h`<article class="card ${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}" draggable="${small ? 'true' : 'false'}" data-id="${p.id}">
-      <header><button class="title-btn" data-act="go:projeto:${p.id}">${p.name}</button>${small ? '' : pBadge(p)}</header>
+      <header><button class="title-btn" data-act="go:demanda:${p.id}">${p.name}</button>${small ? '' : pBadge(p)}</header>
       <p class="muted small">${[cname(p.clientId), p.category].filter(Boolean).join(' · ') || 'Sem solicitante'}</p>
       <div class="card-meter">${U.meter(prog)}<span class="mono small">${Math.round(prog * 100)}%</span></div>
       <footer>${U.priorityBadge(p.priority)}<span class="small">${dueText(p.due, closed)}</span></footer>
       ${small ? '' : h`<p class="small muted">${open} tarefa(s) aberta(s) · ${U.fmtDur(spent)}${p.estimateH ? ' de ' + p.estimateH + ' h' : ''}</p>`}
     </article>`;
   }
-  Views.projetos = {
+  Views.demandas = {
     render() {
       const v = vs('projects', PDEF), list = filteredProjects(v);
       const tools = h`<div class="toolbar">
-        <input type="search" data-f="q" value="${v.q}" placeholder="Buscar projetos" aria-label="Buscar projetos">
+        <input type="search" data-f="q" value="${v.q}" placeholder="Buscar demandas" aria-label="Buscar demandas">
         ${sel('status', S.settings.projectStatuses.map(s => [s.id, s.name]), v.status, 'Todos os status')}
         ${sel('category', S.settings.categories.map(c => [c, c]), v.category, 'Todas as categorias')}
         ${sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}
         ${sel('priority', U.PRIORITIES, v.priority, 'Todas as prioridades')}
         ${v.mode !== 'kanban' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['name', 'Ordenar por nome'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
-        <label class="check small"><input type="checkbox" data-f="closed"${v.closed ? U.raw(' checked') : ''}> Mostrar concluídos e cancelados</label>
+        <label class="check small"><input type="checkbox" data-f="closed"${v.closed ? U.raw(' checked') : ''}> Mostrar concluídas e canceladas</label>
         <span class="grow"></span>${seg('projects', [['cards', 'Cards', 'grid'], ['list', 'Lista', 'list'], ['kanban', 'Kanban', 'columns']], v.mode)}</div>`;
       let body;
-      if (!S.projects.length) body = U.empty('Nenhum projeto ainda', 'Cadastre seu primeiro projeto de design para acompanhar prazos, tarefas e horas.', h`<button class="btn primary" data-act="new:projects">${icon('plus')} Novo projeto</button>`);
+      if (!S.projects.length) body = U.empty('Nenhuma demanda ainda', 'Cadastre sua primeira demanda para acompanhar prazos, tarefas e horas.', h`<button class="btn primary" data-act="new:projects">${icon('plus')} Nova demanda</button>`);
       else if (v.mode === 'kanban') {
         const all = filteredProjects({ ...v, closed: true, status: '' });
         body = h`<div class="kanban">${S.settings.projectStatuses.filter(s => v.closed || s.kind !== 'cancelled').map(s => { const col = all.filter(p => p.status === s.id); return h`<section class="kcol" data-drop="${s.id}" aria-label="${s.name}"><header><h3>${s.name}</h3><span class="badge muted">${col.length}</span></header>${col.map(p => projectCard(p, true))}</section>`; })}</div><p class="muted small">Arraste os cards entre as colunas para mudar o status.</p>`;
-      } else if (!list.length) body = U.empty('Nenhum projeto com estes filtros', 'Ajuste a busca ou os filtros acima.');
-      else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Projeto</th><th>Solicitante</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
-          ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:projeto:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + p.estimateH + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
+      } else if (!list.length) body = U.empty('Nenhuma demanda com estes filtros', 'Ajuste a busca ou os filtros acima.');
+      else if (v.mode === 'list') body = h`<div class="table-wrap"><table class="table"><thead><tr><th>Demanda</th><th>Solicitante</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>Prazo</th><th>Progresso</th><th class="num">Horas</th></tr></thead><tbody>
+          ${list.map(p => { const sp = M.spentMs(S, 'projectId', p.id, now()); return h`<tr class="${M.projectOverdue(S.settings, p, today()) ? 'is-late' : ''}"><td><button class="title-btn" data-act="go:demanda:${p.id}">${p.name}</button></td><td>${cname(p.clientId) || '—'}</td><td>${p.category || '—'}</td><td>${pBadge(p)}</td><td>${U.priorityBadge(p.priority)}</td><td>${dueText(p.due, M.isClosed(S.settings, p))}</td><td class="w-meter">${U.meter(M.projectProgress(S.settings, p, S.tasks))}</td><td class="num mono">${U.fmtDur(sp)}${p.estimateH ? ' / ' + p.estimateH + ' h' : ''}</td></tr>`; })}</tbody></table></div>`;
       else body = h`<div class="cards">${list.map(p => projectCard(p))}</div>`;
-      return h`${App.page('Projetos', `${list.length} de ${S.projects.length} projeto(s)`, h`<button class="btn primary" data-act="new:projects">${icon('plus')} Novo projeto</button>`)}${S.projects.length ? tools : ''}${body}`;
+      return h`${App.page('Demandas', `${list.length} de ${S.projects.length} demanda(s)`, h`<button class="btn primary" data-act="new:projects">${icon('plus')} Nova demanda</button>`)}${S.projects.length ? tools : ''}${body}`;
     },
-    mount(root) { kanbanDnD(root, async (id, status) => { const p = St.get('projects', id); if (!p || p.status === status) return; const rec = { ...p, status, statusSince: now() }; rec.completedAt = M.statusKind(S.settings, status) === 'done' ? p.completedAt || now() : null; try { await St.save('projects', rec, { verb: 'movido para ' + U.projectStatusName(status) }); } catch (e) { U.fail(e); } }); },
+    mount(root) { kanbanDnD(root, async (id, status) => { const p = St.get('projects', id); if (!p || p.status === status) return; const rec = { ...p, status, statusSince: now() }; rec.completedAt = M.statusKind(S.settings, status) === 'done' ? p.completedAt || now() : null; try { await St.save('projects', rec, { verb: 'movida para ' + U.projectStatusName(status) }); } catch (e) { U.fail(e); } }); },
     act(act, [k, val]) { if (act === 'mode') { const v = vs('projects', PDEF); v.mode = val; savePref('projects', { mode: val }); App.render(); } },
     change: e => filterChange(e, 'projects', PDEF), input: e => filterInput(e, 'projects', PDEF),
   };
@@ -162,7 +162,7 @@
   Views.helpers.kanbanDnD = kanbanDnD;
 
   // ================= DETALHE DO PROJETO =================
-  const FIELD_LABELS = { name: 'Nome', title: 'Título', clientId: 'Solicitante', projectId: 'Projeto', category: 'Categoria', status: 'Status', priority: 'Prioridade', start: 'Início', due: 'Prazo', date: 'Data', time: 'Horário', estimateH: 'Horas estimadas', description: 'Descrição', goal: 'Objetivo', links: 'Links', notes: 'Observações', stages: 'Etapas', completedAt: 'Concluído em', statusSince: 'Status desde', end: 'Fim' };
+  const FIELD_LABELS = { name: 'Nome', title: 'Título', clientId: 'Solicitante', projectId: 'Demanda', category: 'Categoria', status: 'Status', priority: 'Prioridade', start: 'Início', due: 'Prazo', date: 'Data', time: 'Horário', estimateH: 'Horas estimadas', description: 'Descrição', goal: 'Objetivo', links: 'Links', notes: 'Observações', stages: 'Etapas', completedAt: 'Concluído em', statusSince: 'Status desde', end: 'Fim' };
   function fmtVal(k, v) {
     if (v === '' || v == null) return '—';
     if (k === 'status') return U.projectStatusName(v) !== v ? U.projectStatusName(v) : U.label(U.TASK_STATUSES, v);
@@ -194,17 +194,17 @@
     </li>`;
   }
   Views.helpers.taskRow = taskRow;
-  Views.projeto = {
+  Views.demanda = {
     render(id) {
       const p = St.get('projects', id);
-      if (!p) return U.empty('Projeto não encontrado', 'Ele pode ter sido excluído.', h`<a class="btn" href="#projetos">Voltar para projetos</a>`);
+      if (!p) return U.empty('Demanda não encontrada', 'Ela pode ter sido excluída.', h`<a class="btn" href="#demandas">Voltar para demandas</a>`);
       const t = now(), tasks = S.tasks.filter(x => x.projectId === id).sort((a, b) => (a.status === 'done') - (b.status === 'done') || (a.due || '9').localeCompare(b.due || '9'));
       const prog = M.projectProgress(S.settings, p, S.tasks), spent = M.spentMs(S, 'projectId', id, t);
       const sessions = S.sessions.filter(s => s.projectId === id).sort((a, b) => b.start - a.start);
       const revs = S.revisions.filter(r => r.projectId === id).sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
       const notes = S.notes.filter(n => n.projectId === id), refs = S.refs.filter(r => r.projectId === id);
       const est = p.estimateH ? p.estimateH * M.HOUR : 0;
-      return h`<nav class="crumbs"><a href="#projetos">Projetos</a> / <span>${p.name}</span></nav>
+      return h`<nav class="crumbs"><a href="#demandas">Demandas</a> / <span>${p.name}</span></nav>
       ${App.page(p.name, [cname(p.clientId), p.category].filter(Boolean).join(' · '), h`<button class="btn" data-act="session-start:${id}">${icon('play')} Cronômetro</button><button class="btn" data-act="edit:projects:${id}">${icon('edit')} Editar</button><button class="btn danger ghost" data-act="del:projects:${id}">${icon('trash')} Excluir</button>`)}
       <section class="panel stats-panel">
         <div class="stat"><span class="stat-label">Status</span><span>${pBadge(p)} ${U.priorityBadge(p.priority)}</span><span class="stat-hint">desde ${p.statusSince ? U.fmtDate(M.isoDate(p.statusSince)) : '—'}</span></div>
@@ -215,11 +215,11 @@
       <div class="grid-2 wide-left">
         <div class="stack-lg">
           <section class="panel"><header class="panel-head"><h2>Tarefas</h2><button class="btn small" data-act="new:tasks" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>${icon('plus')} Nova tarefa</button></header>
-            ${tasks.length ? h`<ul class="task-list">${tasks.map(x => taskRow(x))}</ul>` : U.empty('Sem tarefas', 'Divida o projeto em tarefas para acompanhar o progresso.')}</section>
+            ${tasks.length ? h`<ul class="task-list">${tasks.map(x => taskRow(x))}</ul>` : U.empty('Sem tarefas', 'Divida a demanda em tarefas para acompanhar o progresso.')}</section>
           <section class="panel"><header class="panel-head"><h2>Revisões e aprovações</h2><button class="btn small" data-act="new:revisions" data-defaults='${JSON.stringify({ projectId: id })}'>${icon('plus')} Registrar versão</button></header>
             ${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r))}</ul>` : U.empty('Nenhuma versão enviada', 'Registre cada versão enviada ao solicitante e o retorno recebido.')}</section>
           <section class="panel"><header class="panel-head"><h2>Tempo registrado</h2><span class="muted">${sessions.length} sessão(ões)</span></header>
-            ${sessions.length ? h`<ul class="rows">${sessions.slice(0, 8).map(s => h`<li><button class="row-btn" data-act="time-edit:sessions:${s.id}"><span class="when">${U.fmtDateTime(s.start)}</span><span class="grow ellipsis">${(St.get('tasks', s.taskId) || {}).title || s.note || 'Sem tarefa'}</span><span class="mono">${s.end ? U.fmtDur(M.total(M.workedIntervals(s, S.breaks, t))) : 'em andamento'}</span></button></li>`)}</ul>` : U.empty('Nenhuma hora registrada', 'Inicie o cronômetro neste projeto para registrar o tempo.')}</section>
+            ${sessions.length ? h`<ul class="rows">${sessions.slice(0, 8).map(s => h`<li><button class="row-btn" data-act="time-edit:sessions:${s.id}"><span class="when">${U.fmtDateTime(s.start)}</span><span class="grow ellipsis">${(St.get('tasks', s.taskId) || {}).title || s.note || 'Sem tarefa'}</span><span class="mono">${s.end ? U.fmtDur(M.total(M.workedIntervals(s, S.breaks, t))) : 'em andamento'}</span></button></li>`)}</ul>` : U.empty('Nenhuma hora registrada', 'Inicie o cronômetro nesta demanda para registrar o tempo.')}</section>
           <section class="panel"><header class="panel-head"><h2>Histórico de alterações</h2></header>${historyList(p)}</section>
         </div>
         <div class="stack-lg">
@@ -261,16 +261,16 @@
         <input type="search" data-f="q" value="${v.q}" placeholder="Buscar tarefas e subtarefas" aria-label="Buscar tarefas">
         <select data-f="status" aria-label="Status">${[['open', 'Abertas'], ['all', 'Todas'], ...U.TASK_STATUSES].map(([a, b]) => h`<option value="${a}"${a === v.status ? U.raw(' selected') : ''}>${b}</option>`)}</select>
         ${sel('due', [['late', 'Atrasadas'], ['today', 'Hoje'], ['week', 'Próximos 7 dias'], ['none', 'Sem prazo']], v.due, 'Qualquer prazo')}
-        ${sel('project', [['-', 'Sem projeto'], ...App.opt.projects()], v.project, 'Todos os projetos')}
+        ${sel('project', [['-', 'Sem demanda'], ...App.opt.projects()], v.project, 'Todas as demandas')}
         ${sel('client', App.opt.clients(), v.client, 'Todos os solicitantes')}
         ${sel('priority', U.PRIORITIES, v.priority, 'Todas as prioridades')}
-        ${v.mode === 'list' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['project', 'Ordenar por projeto'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
+        ${v.mode === 'list' ? sel('sort', [['due', 'Ordenar por prazo'], ['priority', 'Ordenar por prioridade'], ['project', 'Ordenar por demanda'], ['created', 'Mais recentes']], v.sort, 'Ordenar') : ''}
         <span class="grow"></span>${seg('tasks', [['list', 'Lista', 'list'], ['kanban', 'Kanban', 'columns'], ['agenda', 'Agenda', 'calendar']], v.mode)}</div>`;
       let body;
-      if (!S.tasks.length) body = U.empty('Nenhuma tarefa ainda', 'Crie tarefas ligadas a projetos ou independentes.', h`<button class="btn primary" data-act="new:tasks">${icon('plus')} Nova tarefa</button>`);
+      if (!S.tasks.length) body = U.empty('Nenhuma tarefa ainda', 'Crie tarefas ligadas a demandas ou independentes.', h`<button class="btn primary" data-act="new:tasks">${icon('plus')} Nova tarefa</button>`);
       else if (v.mode === 'kanban') {
         const all = filteredTasks({ ...v, status: 'all' });
-        body = h`<div class="kanban">${U.TASK_STATUSES.map(([k, l]) => { const col = all.filter(t => t.status === k).slice(0, k === 'done' ? 30 : 200); return h`<section class="kcol" data-drop="${k}" aria-label="${l}"><header><h3>${l}</h3><span class="badge muted">${all.filter(t => t.status === k).length}</span></header>${col.map(t => h`<article class="card ${M.taskOverdue(t, td) ? 'is-late' : ''}" draggable="true" data-id="${t.id}"><header><button class="title-btn" data-act="edit:tasks:${t.id}">${t.title}</button></header><p class="small muted">${pname(t.projectId) || 'Sem projeto'}</p><footer>${U.priorityBadge(t.priority)}<span class="small">${t.due ? dueText(t.due, t.status === 'done') : ''}</span></footer></article>`)}</section>`; })}</div><p class="muted small">Arraste para mudar o status. A coluna Concluída mostra as 30 mais recentes.</p>`;
+        body = h`<div class="kanban">${U.TASK_STATUSES.map(([k, l]) => { const col = all.filter(t => t.status === k).slice(0, k === 'done' ? 30 : 200); return h`<section class="kcol" data-drop="${k}" aria-label="${l}"><header><h3>${l}</h3><span class="badge muted">${all.filter(t => t.status === k).length}</span></header>${col.map(t => h`<article class="card ${M.taskOverdue(t, td) ? 'is-late' : ''}" draggable="true" data-id="${t.id}"><header><button class="title-btn" data-act="edit:tasks:${t.id}">${t.title}</button></header><p class="small muted">${pname(t.projectId) || 'Sem demanda'}</p><footer>${U.priorityBadge(t.priority)}<span class="small">${t.due ? dueText(t.due, t.status === 'done') : ''}</span></footer></article>`)}</section>`; })}</div><p class="muted small">Arraste para mudar o status. A coluna Concluída mostra as 30 mais recentes.</p>`;
       } else if (!list.length) body = U.empty('Nenhuma tarefa com estes filtros', 'Ajuste a busca ou os filtros acima.');
       else if (v.mode === 'agenda') {
         const groups = {};
@@ -296,10 +296,10 @@
       for (const r of list) (byProject[r.projectId] ||= []).push(r);
       return h`${App.page('Revisões e aprovações', 'Versões enviadas, retornos dos solicitantes e decisões', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)}
       ${stale.length || waitingProjects.length ? h`<section class="panel"><header class="panel-head"><h2>Parados aguardando retorno</h2><span class="muted">há ${S.settings.staleDays}+ dias, ou com status de espera</span></header><ul class="rows">
-        ${stale.map(r => revRow(r, true))}${waitingProjects.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="grow ellipsis">${p.name}</span>${pBadge(p)}<span class="small muted">${p.statusSince ? M.daysBetween(M.isoDate(p.statusSince), td) + ' dia(s) neste status' : ''}</span></button></li>`)}</ul></section>` : ''}
-      ${S.revisions.length ? h`<div class="toolbar">${sel('project', App.opt.projects(), v.project, 'Todos os projetos')}${sel('status', U.REVISION_STATUSES, v.status, 'Todos os status')}</div>` : ''}
+        ${stale.map(r => revRow(r, true))}${waitingProjects.map(p => h`<li><button class="row-btn" data-act="go:demanda:${p.id}"><span class="grow ellipsis">${p.name}</span>${pBadge(p)}<span class="small muted">${p.statusSince ? M.daysBetween(M.isoDate(p.statusSince), td) + ' dia(s) neste status' : ''}</span></button></li>`)}</ul></section>` : ''}
+      ${S.revisions.length ? h`<div class="toolbar">${sel('project', App.opt.projects(), v.project, 'Todas as demandas')}${sel('status', U.REVISION_STATUSES, v.status, 'Todos os status')}</div>` : ''}
       ${!S.revisions.length ? U.empty('Nenhuma revisão registrada', 'Ao enviar uma versão para o solicitante, registre aqui. Assim você sabe o que foi pedido, o que foi aprovado e o que está parado.', h`<button class="btn primary" data-act="new:revisions">${icon('plus')} Registrar versão</button>`)
-        : !list.length ? U.empty('Nada com estes filtros', 'Ajuste os filtros.') : Object.entries(byProject).map(([pid, rs]) => h`<section class="panel"><header class="panel-head"><h2><button class="title-btn" data-act="go:projeto:${pid}">${pname(pid) || 'Projeto excluído'}</button></h2><span class="muted">${rs.length} versão(ões)</span></header><ul class="rows">${rs.map(r => revRow(r))}</ul></section>`)}`;
+        : !list.length ? U.empty('Nada com estes filtros', 'Ajuste os filtros.') : Object.entries(byProject).map(([pid, rs]) => h`<section class="panel"><header class="panel-head"><h2><button class="title-btn" data-act="go:demanda:${pid}">${pname(pid) || 'Demanda excluída'}</button></h2><span class="muted">${rs.length} versão(ões)</span></header><ul class="rows">${rs.map(r => revRow(r))}</ul></section>`)}`;
     },
     change: e => filterChange(e, 'revisions', RDEF),
   };
@@ -313,7 +313,7 @@
       return h`${App.page('Solicitantes', `${S.clients.length} solicitante(s)`, h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo solicitante</button>`)}
       ${S.clients.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar solicitantes" aria-label="Buscar solicitantes"></div>` : ''}
       ${!S.clients.length ? U.empty('Nenhum solicitante ainda', 'Cadastre os setores ou pessoas que pedem trabalho para você. Só o nome é obrigatório.', h`<button class="btn primary" data-act="new:clients">${icon('plus')} Novo solicitante</button>`)
-        : !list.length ? U.empty('Nenhum solicitante encontrado', 'Ajuste a busca.') : h`<div class="table-wrap"><table class="table"><thead><tr><th>Solicitante</th><th>Contato</th><th class="num">Projetos ativos</th><th class="num">Tarefas abertas</th><th class="num">Aguardando aprovação</th></tr></thead><tbody>
+        : !list.length ? U.empty('Nenhum solicitante encontrado', 'Ajuste a busca.') : h`<div class="table-wrap"><table class="table"><thead><tr><th>Solicitante</th><th>Contato</th><th class="num">Demandas ativas</th><th class="num">Tarefas abertas</th><th class="num">Aguardando aprovação</th></tr></thead><tbody>
         ${list.map(c => { const ps = S.projects.filter(p => p.clientId === c.id); return h`<tr><td><button class="title-btn" data-act="go:solicitante:${c.id}">${c.name}</button></td><td class="small">${[c.contactName, c.email, c.phone].filter(Boolean).join(' · ') || '—'}</td><td class="num">${ps.filter(p => !M.isClosed(S.settings, p)).length} / ${ps.length}</td><td class="num">${S.tasks.filter(t => t.clientId === c.id && t.status !== 'done').length}</td><td class="num">${ps.filter(p => !M.isClosed(S.settings, p) && M.statusKind(S.settings, p.status) === 'waiting').length || '—'}</td></tr>`; })}</tbody></table></div>`}`;
     },
     change: e => filterChange(e, 'clients', CDEF), input: e => filterInput(e, 'clients', CDEF),
@@ -328,17 +328,17 @@
       const revs = S.revisions.filter(r => ps.some(p => p.id === r.projectId)).sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
       const notes = S.notes.filter(n => n.clientId === id);
       return h`<nav class="crumbs"><a href="#solicitantes">Solicitantes</a> / <span>${c.name}</span></nav>
-      ${App.page(c.name, c.description || '', h`<button class="btn" data-act="new:projects" data-defaults='${JSON.stringify({ clientId: id })}'>${icon('plus')} Novo projeto</button><button class="btn" data-act="edit:clients:${id}">${icon('edit')} Editar</button><button class="btn danger ghost" data-act="del:clients:${id}">${icon('trash')} Excluir</button>`)}
+      ${App.page(c.name, c.description || '', h`<button class="btn" data-act="new:projects" data-defaults='${JSON.stringify({ clientId: id })}'>${icon('plus')} Nova demanda</button><button class="btn" data-act="edit:clients:${id}">${icon('edit')} Editar</button><button class="btn danger ghost" data-act="del:clients:${id}">${icon('trash')} Excluir</button>`)}
       <section class="panel stats-panel">
         <div class="stat"><span class="stat-label">Contato</span><span>${c.contactName || '—'}</span><span class="stat-hint">${[c.email, c.phone].filter(Boolean).join(' · ')}</span></div>
-        <div class="stat"><span class="stat-label">Projetos</span><span class="stat-value">${ps.length}</span><span class="stat-hint">${delivered.length} entregue(s)</span></div>
+        <div class="stat"><span class="stat-label">Demandas</span><span class="stat-value">${ps.length}</span><span class="stat-hint">${delivered.length} entregue(s)</span></div>
         <div class="stat"><span class="stat-label">Em aberto</span><span class="stat-value">${ps.filter(p => !M.isClosed(S.settings, p)).length}</span><span class="stat-hint">${tasks.length} tarefa(s) aberta(s)</span></div>
       </section>
       <div class="grid-2">
-        <section class="panel"><header class="panel-head"><h2>Histórico de solicitações</h2><span class="muted">projetos por data de pedido</span></header>
-          ${ps.length ? h`<ul class="rows">${ps.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="when">${U.fmtDate(M.isoDate(p.created))}</span><span class="grow ellipsis">${p.name}</span>${pBadge(p)}</button></li>`)}</ul>` : U.empty('Nenhum projeto', 'Projetos deste solicitante aparecem aqui.')}</section>
+        <section class="panel"><header class="panel-head"><h2>Histórico de solicitações</h2><span class="muted">demandas por data de pedido</span></header>
+          ${ps.length ? h`<ul class="rows">${ps.map(p => h`<li><button class="row-btn" data-act="go:demanda:${p.id}"><span class="when">${U.fmtDate(M.isoDate(p.created))}</span><span class="grow ellipsis">${p.name}</span>${pBadge(p)}</button></li>`)}</ul>` : U.empty('Nenhuma demanda', 'Demandas deste solicitante aparecem aqui.')}</section>
         <section class="panel"><header class="panel-head"><h2>Entregas</h2></header>
-          ${delivered.length ? h`<ul class="rows">${delivered.map(p => h`<li><button class="row-btn" data-act="go:projeto:${p.id}"><span class="when">${p.completedAt ? U.fmtDate(M.isoDate(p.completedAt)) : '—'}</span><span class="grow ellipsis">${p.name}</span>${p.due && p.completedAt ? (M.isoDate(p.completedAt) <= p.due ? U.badge('no prazo', 'good') : U.badge('fora do prazo', 'warn')) : ''}</button></li>`)}</ul>` : h`<p class="muted">Nenhuma entrega concluída.</p>`}</section>
+          ${delivered.length ? h`<ul class="rows">${delivered.map(p => h`<li><button class="row-btn" data-act="go:demanda:${p.id}"><span class="when">${p.completedAt ? U.fmtDate(M.isoDate(p.completedAt)) : '—'}</span><span class="grow ellipsis">${p.name}</span>${p.due && p.completedAt ? (M.isoDate(p.completedAt) <= p.due ? U.badge('no prazo', 'good') : U.badge('fora do prazo', 'warn')) : ''}</button></li>`)}</ul>` : h`<p class="muted">Nenhuma entrega concluída.</p>`}</section>
         <section class="panel"><header class="panel-head"><h2>Tarefas abertas</h2></header>${tasks.length ? h`<ul class="task-list">${tasks.map(t => taskRow(t, { project: true }))}</ul>` : h`<p class="muted">Nenhuma tarefa aberta.</p>`}</section>
         <section class="panel"><header class="panel-head"><h2>Aprovações</h2></header>${revs.length ? h`<ul class="rows">${revs.map(r => revRow(r, true))}</ul>` : h`<p class="muted">Nenhuma revisão registrada.</p>`}</section>
         <section class="panel"><header class="panel-head"><h2>Anotações</h2><button class="btn small" data-act="new:notes" data-defaults='${JSON.stringify({ clientId: id })}'>${icon('plus')}</button></header>${notes.length ? h`<ul class="rows">${notes.map(n => h`<li><button class="row-btn" data-act="edit:notes:${n.id}"><span class="grow ellipsis">${n.title}</span><span class="badge muted">${n.kind}</span></button></li>`)}</ul>` : h`<p class="muted">Nenhuma anotação.</p>`}</section>

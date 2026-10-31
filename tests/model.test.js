@@ -101,12 +101,12 @@ test('insights: dizem quando faltam dados e não inventam análises', () => {
   assert.ok(r.lack.length >= 4);
 });
 
-test('insights: dia sobrecarregado e projeto atrasado', () => {
+test('insights: dia sobrecarregado e demanda atrasada', () => {
   const tasks = Array.from({ length: 6 }, (_, i) => ({ id: 't' + i, title: 'Tarefa ' + i, status: 'todo', priority: 'medium', due: '2026-10-28', created: 0 }));
   const st = base({ tasks, projects: [{ id: 'p', name: 'Atrasado', status: 'doing', due: '2026-10-20' }] });
   const r = M.insights(st, at(0, 12));
   assert.ok(r.items.some(i => i.title.includes('Dia cheio')));
-  assert.ok(r.items.some(i => i.title.includes('atrasado')));
+  assert.ok(r.items.some(i => i.title.includes('atrasada')));
   assert.ok(r.items.some(i => /aparece 6 vezes/.test(i.title)));  // título repetido = tarefa recorrente
 });
 

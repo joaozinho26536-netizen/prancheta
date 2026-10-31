@@ -44,7 +44,7 @@
         <section class="panel timer-panel">
           <header class="panel-head"><h2>Sessão de trabalho</h2>${s ? U.badge(paused ? 'pausada' : b ? 'em pausa registrada' : 'em andamento', paused || b ? 'warn' : 'good') : U.badge('parada', 'muted')}</header>
           <p class="big-clock mono" data-live="session">${s ? U.fmtClock(M.total(M.workedIntervals(s, S.breaks, t))) : '00:00:00'}</p>
-          <p class="muted">${s ? [p ? p.name : 'Sem projeto', tname(s.taskId), s.note].filter(Boolean).join(' · ') + ' · desde ' + U.fmtTime(s.start) : 'Escolha um projeto e uma tarefa ao iniciar. Pausas registradas não contam como tempo trabalhado.'}</p>
+          <p class="muted">${s ? [p ? p.name : 'Sem demanda', tname(s.taskId), s.note].filter(Boolean).join(' · ') + ' · desde ' + U.fmtTime(s.start) : 'Escolha uma demanda e uma tarefa ao iniciar. Pausas registradas não contam como tempo trabalhado.'}</p>
           <div class="row">${s ? h`<button class="btn" data-act="${paused ? 'session-resume' : 'session-pause'}">${icon(paused ? 'play' : 'pause')} ${paused ? 'Retomar' : 'Pausar sessão'}</button><button class="btn primary" data-act="session-stop">${icon('stop')} Encerrar sessão</button><button class="btn ghost" data-act="time-edit:sessions:${s.id}">Corrigir</button>` : h`<button class="btn primary" data-act="session-start">${icon('play')} Iniciar cronômetro</button>`}</div>
         </section>
       </div>
@@ -53,22 +53,22 @@
           <div class="stat"><span class="stat-label">Tempo de expediente</span><span class="stat-value">${U.fmtDur(day.workdayMs)}</span></div>
           <div class="stat"><span class="stat-label">Efetivamente trabalhado</span><span class="stat-value" data-live="today-worked">${U.fmtDur(day.workedMs)}</span></div>
           <div class="stat"><span class="stat-label">Pausas</span><span class="stat-value">${U.fmtDur(day.breakMs)}</span></div>
-          <div class="stat"><span class="stat-label">Em projetos</span><span class="stat-value">${U.fmtDur(day.projectMs)}</span></div>
-          <div class="stat"><span class="stat-label">Sem classificação</span><span class="stat-value">${U.fmtDur(day.unclassifiedMs)}</span><span class="stat-hint">sessões sem projeto</span></div>
+          <div class="stat"><span class="stat-label">Em demandas</span><span class="stat-value">${U.fmtDur(day.projectMs)}</span></div>
+          <div class="stat"><span class="stat-label">Sem classificação</span><span class="stat-value">${U.fmtDur(day.unclassifiedMs)}</span><span class="stat-hint">sessões sem demanda</span></div>
           <div class="stat"><span class="stat-label">Expediente sem sessão</span><span class="stat-value">${U.fmtDur(idle)}</span><span class="stat-hint">aberto, mas sem cronômetro</span></div>
         </div></section>
       <section class="panel"><header class="panel-head"><h2>Planejado × trabalhado</h2><span class="muted">planejado = jornada de ${M.f1(M.workHoursPerDay(set))} h nos dias de trabalho</span></header>
         <ul class="rows">${per.map(x => h`<li class="goal-row"><span class="grow">${{ day: 'Hoje', week: 'Esta semana', month: 'Este mês' }[x.k]}</span><span class="mono">${U.fmtDur(x.sum.workedMs)} / ${U.fmtDur(x.plan)}</span>${U.meter(x.plan ? x.sum.workedMs / x.plan : 0)}</li>`)}
           <li class="goal-row"><span class="grow">Saldo de jornada no mês <span class="muted small">(banco de horas pessoal: expediente − pausas − jornada)</span></span><span class="mono ${monthSaldo.total < 0 ? 'txt-warn' : ''}">${signed(monthSaldo.total)}</span><span></span></li></ul></section>
-      ${estRows.length ? h`<section class="panel"><header class="panel-head"><h2>Estimado × realizado por projeto</h2><span class="muted">projetos abertos com estimativa</span></header>
-        <div class="table-wrap"><table class="table"><thead><tr><th>Projeto</th><th class="num">Estimado</th><th class="num">Realizado</th><th class="num">Diferença</th><th></th></tr></thead><tbody>${estRows.map(x => h`<tr><td><button class="title-btn" data-act="go:projeto:${x.p.id}">${x.p.name}</button></td><td class="num">${U.fmtDur(x.est)}</td><td class="num">${U.fmtDur(x.real)}</td><td class="num ${x.real > x.est ? 'txt-bad' : ''}">${x.real > x.est ? '+' : '−'}${U.fmtDur(Math.abs(x.real - x.est))}</td><td class="w-meter">${U.meter(x.real / x.est, x.real > x.est ? 'bad' : '')}</td></tr>`)}</tbody></table></div></section>` : ''}
+      ${estRows.length ? h`<section class="panel"><header class="panel-head"><h2>Estimado × realizado por demanda</h2><span class="muted">demandas abertas com estimativa</span></header>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Demanda</th><th class="num">Estimado</th><th class="num">Realizado</th><th class="num">Diferença</th><th></th></tr></thead><tbody>${estRows.map(x => h`<tr><td><button class="title-btn" data-act="go:demanda:${x.p.id}">${x.p.name}</button></td><td class="num">${U.fmtDur(x.est)}</td><td class="num">${U.fmtDur(x.real)}</td><td class="num ${x.real > x.est ? 'txt-bad' : ''}">${x.real > x.est ? '+' : '−'}${U.fmtDur(Math.abs(x.real - x.est))}</td><td class="w-meter">${U.meter(x.real / x.est, x.real > x.est ? 'bad' : '')}</td></tr>`)}</tbody></table></div></section>` : ''}
       <section class="panel"><header class="panel-head"><h2>Histórico</h2></header>
         <div class="toolbar"><label class="inline">De <input type="date" data-f="from" value="${v.from}"></label><label class="inline">até <input type="date" data-f="to" value="${v.to}"></label>
           ${H.seg('timekind', [['sessions', 'Sessões'], ['workdays', 'Expedientes'], ['breaks', 'Pausas'], ['days', 'Por dia']], v.kind)}</div>
         ${v.kind === 'days' ? (days.length ? h`<div class="table-wrap"><table class="table"><thead><tr><th>Dia</th><th class="num">Expediente</th><th class="num">Pausas</th><th class="num">Jornada prevista</th><th class="num">Saldo</th><th class="num">Com cronômetro</th></tr></thead><tbody>${days.map(d => { const j = saldo.days[d]; return h`<tr><td>${U.fmtDate(d)} <span class="muted">${U.WEEKDAYS[new Date(M.parseDate(d)).getDay()]}</span></td><td class="num">${j ? U.fmtDur(j.workday) : '—'}</td><td class="num">${U.fmtDur(range.breakByDay[d] || 0)}</td><td class="num muted">${U.fmtDur(plannedMs(M.parseDate(d), M.addDays(M.parseDate(d), 1)))}</td><td class="num mono">${j ? signed(j.saldo) : '—'}</td><td class="num muted">${U.fmtDur(range.byDay[d] || 0)}</td></tr>`; })}<tr class="total"><td>Total</td><td class="num">${U.fmtDur(range.workdayMs)}</td><td class="num">${U.fmtDur(range.breakMs)}</td><td class="num">${U.fmtDur(Object.values(saldo.days).reduce((x, j) => x + j.plan, 0))}</td><td class="num mono">${signed(saldo.total)}</td><td class="num">${U.fmtDur(range.workedMs)}</td></tr></tbody></table></div><p class="small muted">Saldo = expediente − pausas − jornada prevista, só nos dias com expediente registrado. É um controle pessoal: o oficial é o ponto da empresa.</p>` : U.empty('Sem registros neste período', 'Ajuste as datas.'))
-        : rows.length ? h`<div class="table-wrap"><table class="table"><thead><tr><th>Data</th><th>Início</th><th>Fim</th><th class="num">Duração</th><th>${v.kind === 'sessions' ? 'Projeto / tarefa' : v.kind === 'breaks' ? 'Tipo' : ''}</th><th></th></tr></thead><tbody>
+        : rows.length ? h`<div class="table-wrap"><table class="table"><thead><tr><th>Data</th><th>Início</th><th>Fim</th><th class="num">Duração</th><th>${v.kind === 'sessions' ? 'Demanda / tarefa' : v.kind === 'breaks' ? 'Tipo' : ''}</th><th></th></tr></thead><tbody>
           ${rows.map(r => h`<tr><td>${U.fmtDate(M.isoDate(r.start))}</td><td class="mono">${U.fmtTime(r.start)}</td><td class="mono">${r.end ? U.fmtTime(r.end) + (M.isoDate(r.end) !== M.isoDate(r.start) ? ' (+1)' : '') : U.badge('em andamento', 'good')}</td><td class="num mono">${U.fmtDur(dur(r))}</td>
-            <td class="small">${v.kind === 'sessions' ? [H.pname(r.projectId) || 'Sem projeto', tname(r.taskId), r.note].filter(Boolean).join(' · ') : v.kind === 'breaks' ? r.typeName : ''}${r.manual ? h` ${U.badge('manual', 'muted')}` : ''}${(r.history || []).length ? h` ${U.badge('editado', 'muted')}` : ''}${(r.pauses || []).length ? h` <span class="muted">${r.pauses.length} pausa(s) da sessão</span>` : ''}</td>
+            <td class="small">${v.kind === 'sessions' ? [H.pname(r.projectId) || 'Sem demanda', tname(r.taskId), r.note].filter(Boolean).join(' · ') : v.kind === 'breaks' ? r.typeName : ''}${r.manual ? h` ${U.badge('manual', 'muted')}` : ''}${(r.history || []).length ? h` ${U.badge('editado', 'muted')}` : ''}${(r.pauses || []).length ? h` <span class="muted">${r.pauses.length} pausa(s) da sessão</span>` : ''}</td>
             <td><button class="icon-btn" data-act="time-edit:${v.kind}:${r.id}" aria-label="Editar registro">${icon('edit')}</button></td></tr>`)}</tbody></table></div>` : U.empty('Sem registros neste período', 'Ajuste as datas ou registre manualmente.')}
       </section>`;
     },
@@ -119,7 +119,7 @@
   };
 
   // ================= CALENDÁRIO =================
-  const KIND = { meeting: 'Reunião', delivery: 'Entrega', review: 'Revisão', approval: 'Aprovação', personal: 'Pessoal', other: 'Outro', task: 'Tarefa', deadline: 'Prazo de projeto', revision: 'Retorno de revisão', work: 'Expediente', break: 'Pausa', session: 'Sessão' };
+  const KIND = { meeting: 'Reunião', delivery: 'Entrega', review: 'Revisão', approval: 'Aprovação', personal: 'Pessoal', other: 'Outro', task: 'Tarefa', deadline: 'Prazo de demanda', revision: 'Retorno de revisão', work: 'Expediente', break: 'Pausa', session: 'Sessão' };
   // itens do calendário entre duas datas ISO (inclusive); cada tarefa aparece uma única vez
   function items(a, z, withTime) {
     const td = today(), out = [], inR = d => d && d >= a && d <= z;
@@ -128,13 +128,13 @@
       const d = t.date || t.due; if (!inR(d)) continue;
       out.push({ d, time: t.time, title: t.title, kind: 'task', done: t.status === 'done', late: M.taskOverdue(t, td), sub: t.date && t.due && t.due !== t.date ? 'prazo ' + U.fmtDate(t.due, { short: true }) : '', act: 'edit:tasks:' + t.id, drag: 't:' + t.id });
     }
-    for (const p of S.projects) if (inR(p.due)) out.push({ d: p.due, title: p.name, kind: 'deadline', done: M.isClosed(S.settings, p), late: M.projectOverdue(S.settings, p, td), act: 'go:projeto:' + p.id });
+    for (const p of S.projects) if (inR(p.due)) out.push({ d: p.due, title: p.name, kind: 'deadline', done: M.isClosed(S.settings, p), late: M.projectOverdue(S.settings, p, td), act: 'go:demanda:' + p.id });
     for (const r of S.revisions) if (r.status !== 'approved' && inR(r.nextDue)) out.push({ d: r.nextDue, title: (H.pname(r.projectId) || '') + ' · ' + r.version, kind: 'revision', act: 'edit:revisions:' + r.id });
     if (withTime) {
       const add = (list, kind, label, act) => { for (const x of list) { const d = M.isoDate(x.start); if (inR(d)) out.push({ d, time: U.fmtTime(x.start), end: x.end ? U.fmtTime(x.end) : 'agora', title: label(x), kind, act: act + x.id, bg: true }); } };
       add(S.workdays, 'work', () => 'Expediente', 'time-edit:workdays:');
       add(S.breaks, 'break', x => x.typeName || 'Pausa', 'time-edit:breaks:');
-      if (withTime === 'day') add(S.sessions, 'session', x => [H.pname(x.projectId) || 'Sem projeto', tname(x.taskId)].filter(Boolean).join(' · '), 'time-edit:sessions:');
+      if (withTime === 'day') add(S.sessions, 'session', x => [H.pname(x.projectId) || 'Sem demanda', tname(x.taskId)].filter(Boolean).join(' · '), 'time-edit:sessions:');
     }
     return out.sort((x, y) => (x.time || '').localeCompare(y.time || ''));
   }
