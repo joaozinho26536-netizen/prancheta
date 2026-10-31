@@ -143,3 +143,19 @@ test('saldo da jornada (banco de horas): expediente − pausas − jornada previ
   assert.strictEqual(r.days[M.isoDate(at(5, 12))].saldo, 2 * H);    // sábado: tudo é extra
   assert.strictEqual(r.total, H);
 });
+
+test('escrita rápida entende prazo, horário e prioridade no texto', () => {
+  const now = at(0, 10); // segunda, 26/10/2026, 10h
+  const q = t => M.parseQuick(t, now);
+  assert.deepStrictEqual(q('Entregar banner até sexta 14h !urgente'), { priority: 'urgent', time: '14:00', due: '2026-10-30', title: 'Entregar banner' });
+  assert.deepStrictEqual(q('Revisar arte amanhã'), { due: '2026-10-27', title: 'Revisar arte' });
+  assert.deepStrictEqual(q('Ligar para o RH hoje às 16:30'), { time: '16:30', due: '2026-10-26', title: 'Ligar para o RH' });
+  assert.strictEqual(q('Fechar arquivo segunda-feira').due, '2026-10-26');      // hoje mesmo
+  assert.strictEqual(q('Post de Natal 20/12').due, '2026-12-20');
+  assert.strictEqual(q('Planejamento 05/01').due, '2027-01-05');                // já passou este ano → ano que vem
+  assert.strictEqual(q('Algo 31/02').due, undefined);                           // data impossível fica no título
+  assert.strictEqual(q('Algo 31/02').title, 'Algo 31/02');
+  assert.deepStrictEqual(q('Banner da sexta-feira santa'), { due: '2026-10-30', title: 'Banner da santa' }); // limite conhecido: dia da semana solto vira prazo
+  assert.deepStrictEqual(q('Só um título'), { title: 'Só um título' });
+  assert.strictEqual(q('Arte !média').priority, 'medium');
+});

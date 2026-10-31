@@ -370,6 +370,35 @@
     return { records: [...map.values()], added, updated };
   }
 
+  // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
+  // "Entregar banner até sexta 14h !urgente" → título "Entregar banner", prazo na próxima sexta, 14:00, urgente
+  const WEEK = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+  const PRIO = { urgente: 'urgent', alta: 'high', media: 'medium', baixa: 'low' };
+  const fold = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  function parseQuick(text, now) {
+    const out = {}, today = startOfDay(now), cut = [];
+    // cada achado marca o trecho a remover, levando junto uma preposição logo antes ("até sexta", "às 14h")
+    const prep = String.raw`(?:(?:ate|para|pra|na|no|dia|as|a partir de)\s+)?`;
+    const find = (re, fn) => { const f = fold(text); const m = f.match(re); if (!m) return; if (fn(m) !== false) cut.push([m.index, m.index + m[0].length]); };
+    find(/(^|\s)!(urgente|alta|media|baixa)\b/, m => { out.priority = PRIO[m[2]]; });
+    find(new RegExp(String.raw`(^|\s)${prep}(\d{1,2})[:h](\d{2})?(?=\s|$)`), m => { const hh = +m[2], mm = +(m[3] || 0); if (hh > 23 || mm > 59) return false; out.time = pad(hh) + ':' + pad(mm); });
+    find(new RegExp(String.raw`(^|\s)${prep}(depois de amanha|hoje|amanha)(?=\s|$)`), m => { out.due = isoDate(addDays(today, { hoje: 0, amanha: 1, 'depois de amanha': 2 }[m[2]])); });
+    if (!out.due) find(new RegExp(String.raw`(^|\s)${prep}(domingo|segunda|terca|quarta|quinta|sexta|sabado)(-feira)?(?=\s|$)`), m => { const diff = (WEEK[m[2]] - new Date(today).getDay() + 7) % 7; out.due = isoDate(addDays(today, diff)); });
+    if (!out.due) find(new RegExp(String.raw`(^|\s)${prep}(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?(?=\s|$)`), m => {
+      const d = +m[2], mo = +m[3], y0 = m[4] ? (m[4].length === 2 ? 2000 + +m[4] : +m[4]) : new Date(today).getFullYear();
+      let dt = new Date(y0, mo - 1, d);
+      if (dt.getDate() !== d || dt.getMonth() !== mo - 1) return false;          // 31/02 não é data
+      if (!m[4] && dt.getTime() < today) dt = new Date(y0 + 1, mo - 1, d);       // 05/01 em dezembro = ano que vem
+      out.due = isoDate(dt.getTime());
+    });
+    if (out.time && !out.due) out.due = isoDate(today);
+    // remove os trechos achados (do fim para o começo, para os índices não mudarem)
+    let title = text;
+    for (const [a, b] of cut.sort((x, y) => y[0] - x[0])) title = title.slice(0, a) + ' ' + title.slice(b);
+    out.title = title.replace(/\s+/g, ' ').trim();
+    return out;
+  }
+
   // ---------- música (player oficial do Spotify) ----------
   // aceita link do open.spotify.com (com ou sem /intl-xx/) ou URI spotify:tipo:id
   const SPOTIFY_TYPES = ['playlist', 'album', 'track', 'artist', 'show', 'episode'];
@@ -400,7 +429,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    spotifyEmbed, validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    parseQuick, spotifyEmbed, validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

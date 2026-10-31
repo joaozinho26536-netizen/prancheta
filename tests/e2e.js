@@ -255,6 +255,11 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await page.keyboard.type('Exportar PDF final'); await page.keyboard.press('Enter'); await sleep(150);
   const quickTasks = await page.evaluate(() => Store.S.tasks.filter(t => ['Revisar arte do banner', 'Exportar PDF final'].includes(t.title)).length);
   const stillFocused = await page.evaluate(() => document.activeElement.dataset.quick === 'tasks' && document.activeElement.value === '');
+  await page.keyboard.type('Enviar arte final até sexta 14h !urgente');
+  const preview = await text('.quick-tip');
+  await page.keyboard.press('Enter'); await sleep(150);
+  const parsed = await page.evaluate(() => Store.S.tasks.find(t => t.title === 'Enviar arte final'));
+  check('Escrita rápida entende prazo, horário e prioridade', /Prazo: sex 06\/11\/2026 · às 14:00 · Urgente/.test(preview) && parsed && parsed.due === '2026-11-06' && parsed.time === '14:00' && parsed.priority === 'urgent', preview + ' / ' + JSON.stringify(parsed && [parsed.due, parsed.time, parsed.priority]));
   await go('anotacoes');
   await page.keyboard.type('Ideia para o post'); await page.keyboard.press('Shift+Enter'); await page.keyboard.type('Usar fotos da equipe');
   await page.keyboard.press('Control+Enter'); await sleep(150);

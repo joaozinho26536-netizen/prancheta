@@ -185,7 +185,7 @@
     const attrs = h` data-quick="${type}" data-extra='${JSON.stringify(extra)}' placeholder="${QUICK_HINT[type]}" aria-label="${QUICK_HINT[type]}"`;
     return type === 'notes'
       ? h`<form class="quick note-quick"><textarea rows="3"${attrs}></textarea><div class="quick-foot"><span class="small muted"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> salva</span><button class="btn primary small">Salvar anotação</button></div></form>`
-      : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">Enter cria · clique no item para detalhar</span></form>`;
+      : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">Enter cria · ex.: “até sexta 14h !urgente”</span></form>`;
   };
   document.addEventListener('submit', async e => {
     const f = e.target.closest('form.quick'); if (!f) return;
@@ -196,9 +196,23 @@
     const type = el.dataset.quick, F = FORMS[type];
     const rec = { ...F.defaults(), ...JSON.parse(el.dataset.extra || '{}') };
     if (type === 'notes') { const [first, ...rest] = text.split('\n'); rec.title = first.trim().slice(0, 120); rec.body = first.trim().length > 120 ? text : rest.join('\n').trim(); }
-    else rec[type === 'projects' ? 'name' : 'title'] = text;
+    else {
+      const q = M.parseQuick(text, now());
+      rec[type === 'projects' ? 'name' : 'title'] = q.title || text;
+      if (q.due) rec.due = q.due;
+      if (q.priority) rec.priority = q.priority;
+      if (q.time && type === 'tasks') rec.time = q.time;
+    }
     if (F.before) F.before(rec, null);
     try { await St.save(type, rec); el.value = ''; } catch (err) { U.fail(err); } finally { delete f.dataset.busy; }
+  });
+  // prévia do que foi entendido no texto (prazo, horário, prioridade), antes do Enter
+  document.addEventListener('input', e => {
+    const el = e.target.closest('input[data-quick]'); if (!el) return;
+    const tip = el.parentElement.querySelector('.quick-tip'), q = M.parseQuick(el.value, now());
+    const bits = [q.due && 'Prazo: ' + U.WEEKDAYS[new Date(M.parseDate(q.due)).getDay()] + ' ' + U.fmtDate(q.due), q.time && el.dataset.quick === 'tasks' && 'às ' + q.time, q.priority && U.label(U.PRIORITIES, q.priority)].filter(Boolean);
+    tip.textContent = bits.length ? bits.join(' · ') : 'Enter cria · ex.: “até sexta 14h !urgente”';
+    tip.classList.toggle('parsed', bits.length > 0);
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('textarea[data-quick]')) { e.preventDefault(); e.target.form.requestSubmit(); }
