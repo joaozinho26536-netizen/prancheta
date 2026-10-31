@@ -338,9 +338,11 @@
   const ROUTES = [
     ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'], ['anotacoes', 'Anotações', 'note', 'top'],
     ['calendario', 'Calendário', 'calendar', 'top'], ['tempo', 'Controle de tempo', 'clock', 'top', 'Tempo'], ['relatorios', 'Relatórios', 'chart', 'top'],
-    ['revisoes', 'Revisões', 'rotate', 'rail'], ['solicitantes', 'Solicitantes', 'users', 'rail'], ['pausas', 'Pausas', 'coffee', 'rail'],
-    ['referencias', 'Referências criativas', 'image', 'rail'],
-    ['metas', 'Metas', 'target', 'rail'], ['insights', 'Insights e sugestões', 'bulb', 'rail'],
+    // na barra lateral: [..., 'rail', rótulo curto, grupo]
+    ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'],
+    ['pausas', 'Pausas', 'coffee', 'rail', '', 'Tempo'],
+    ['referencias', 'Referências criativas', 'image', 'rail', 'Referências', 'Criação'],
+    ['metas', 'Metas', 'target', 'rail', '', 'Análise'], ['insights', 'Insights e sugestões', 'bulb', 'rail', 'Insights', 'Análise'],
   ];
   App.ROUTES = ROUTES;
   function go(r) { location.hash = r; }
@@ -591,13 +593,33 @@
   }
 
   // ---------- início ----------
-  App.applyAccent = () => document.documentElement.style.setProperty('--accent', S.settings.accent || '#4f8bff');
+  // tema (claro verde-musgo ou pôr do sol) e cor de destaque opcional por cima dele
+  const THEME_ACCENT = { claro: '#52664f', sol: '#4f8bff' };
+  const OLD_DEFAULTS = ['#4f8bff', '#2f5bd3']; // cores padrão de versões anteriores: seguem o tema
+  App.THEME_ACCENT = THEME_ACCENT;
+  App.themeAccent = () => THEME_ACCENT[S.settings.theme === 'sol' ? 'sol' : 'claro'];
+  App.applyAccent = () => {
+    const root = document.documentElement, sol = S.settings.theme === 'sol';
+    if (sol) root.dataset.theme = 'sol'; else delete root.dataset.theme;
+    const a = (S.settings.accent || '').toLowerCase();
+    const custom = a && !OLD_DEFAULTS.includes(a) && a !== App.themeAccent();
+    for (const [k, v] of [['--accent', a], ['--accent-strong', `color-mix(in srgb, ${a} 80%, black)`], ['--accent-soft', `color-mix(in srgb, ${a} ${sol ? 24 : 14}%, ${sol ? 'transparent' : 'white'})`], ['--hi', `color-mix(in srgb, ${a} ${sol ? 20 : 12}%, ${sol ? 'transparent' : 'white'})`]])
+      custom ? root.style.setProperty(k, v) : root.style.removeProperty(k);
+  };
   async function boot() {
     const nav = document.getElementById('nav');
     nav.insertAdjacentHTML('beforeend', U.html(ROUTES.filter(x => x[3] === 'top').map(([r, t, , , short]) => h`<a href="#${r}" data-r="${r}">${short || t}</a>`)));
-    const railLink = ([r, t, ic]) => h`<a class="rail-btn" href="#${r}" data-r="${r}" aria-label="${t}" data-tip="${t}">${icon(ic)}</a>`;
-    document.getElementById('rail').innerHTML = U.html(h`<button class="rail-btn" data-open-search aria-label="Buscar (/)" data-tip="Buscar">${icon('search')}</button>
-      ${ROUTES.filter(x => x[3] === 'rail').map(railLink)}<span class="rail-sep" aria-hidden="true"></span><button class="rail-btn" data-lock-now aria-label="Bloquear" data-tip="Bloquear">${icon('lock')}</button>${railLink(['configuracoes', 'Configurações', 'gear'])}`);
+    // barra lateral recolhível: aberta mostra rótulos e grupos; recolhida, só ícones (o nome aparece ao passar o mouse)
+    const railLink = ([r, t, ic, , short]) => h`<a class="rail-btn" href="#${r}" data-r="${r}" data-tip="${short || t}">${icon(ic)}<span class="rail-label">${short || t}</span></a>`;
+    const railGroups = [...new Set(ROUTES.filter(x => x[3] === 'rail').map(x => x[5]))];
+    document.getElementById('rail').innerHTML = U.html(h`<button class="rail-btn rail-toggle" data-rail-toggle data-tip="Abrir menu">${icon('sidebar')}<span class="rail-label">Recolher menu</span></button>
+      <button class="rail-btn" data-open-search data-tip="Buscar">${icon('search')}<span class="rail-label">Buscar <kbd>/</kbd></span></button>
+      ${railGroups.map(g => h`<p class="rail-group rail-label">${g}</p>${ROUTES.filter(x => x[3] === 'rail' && x[5] === g).map(railLink)}`)}
+      <span class="rail-sep" aria-hidden="true"></span><button class="rail-btn" data-lock-now data-tip="Bloquear">${icon('lock')}<span class="rail-label">Bloquear</span></button>${railLink(['configuracoes', 'Configurações', 'gear'])}`);
+    const setRail = open => { document.body.classList.toggle('rail-open', open); const tg = document.querySelector('[data-rail-toggle]'); tg.setAttribute('aria-expanded', open); tg.querySelector('.rail-label').textContent = open ? 'Recolher menu' : 'Abrir menu'; try { localStorage.setItem('prancheta.rail', open ? '1' : '0'); } catch { /* sem localStorage */ } movePill(); };
+    let railPref = null; try { railPref = localStorage.getItem('prancheta.rail'); } catch { /* sem localStorage */ }
+    setRail(railPref ? railPref === '1' : innerWidth >= 1200);
+    document.querySelector('[data-rail-toggle]').addEventListener('click', () => setRail(!document.body.classList.contains('rail-open')));
     document.querySelector('[data-lock-now]').addEventListener('click', () => window.Lock.lockNow());
     document.querySelector('[data-open-search]').addEventListener('click', openSearch);
     document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
@@ -611,8 +633,8 @@
       return;
     }
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-    await window.Lock.gate();
     App.applyAccent();
+    await window.Lock.gate();
     setupMusic();
     St.onChange(() => { App.applyAccent(); render(); renderMusic(); });
     window.addEventListener('hashchange', render);

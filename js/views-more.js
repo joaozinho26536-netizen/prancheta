@@ -224,7 +224,8 @@
           <div class="field"><label for="s-wk">Semana começa em</label><select id="s-wk" name="weekStart"><option value="1"${s.weekStart === 1 ? U.raw(' selected') : ''}>segunda-feira</option><option value="0"${s.weekStart === 0 ? U.raw(' selected') : ''}>domingo</option></select></div>
           <div class="field"><label for="s-cv">Visão inicial do calendário</label><select id="s-cv" name="calendarView">${[['day', 'Dia'], ['week', 'Semana'], ['month', 'Mês']].map(([a, b]) => h`<option value="${a}"${s.calendarView === a ? U.raw(' selected') : ''}>${b}</option>`)}</select></div>
           <div class="field"><label for="s-df">Formato de data</label><select id="s-df" name="dateFormat"><option value="dd/mm/aaaa"${s.dateFormat === 'dd/mm/aaaa' ? U.raw(' selected') : ''}>31/10/2026</option><option value="aaaa-mm-dd"${s.dateFormat === 'aaaa-mm-dd' ? U.raw(' selected') : ''}>2026-10-31</option></select><small class="hint">Horários sempre em 24 h.</small></div>
-          <div class="field"><label for="s-ac">Cor de destaque</label><input id="s-ac" type="color" name="accent" value="${s.accent}"></div>
+          <div class="field"><label for="s-th">Tema</label><select id="s-th" name="theme"><option value="claro"${s.theme !== 'sol' ? U.raw(' selected') : ''}>Claro (verde-musgo)</option><option value="sol"${s.theme === 'sol' ? U.raw(' selected') : ''}>Pôr do sol (vidro escuro)</option></select></div>
+          <div class="field"><label for="s-ac">Cor de destaque</label><input id="s-ac" type="color" name="accent" value="${s.accent && !['#4f8bff', '#2f5bd3'].includes(s.accent.toLowerCase()) ? s.accent : App.themeAccent()}"><small class="hint">Deixe na cor sugerida para seguir o tema.</small></div>
           <div class="field"><label for="s-mt">Alerta de dia cheio (tarefas por dia)</label><input id="s-mt" type="number" min="1" name="maxTasksPerDay" value="${s.maxTasksPerDay}"></div>
           <div class="field"><label for="s-sd">Alerta de espera do solicitante (dias)</label><input id="s-sd" type="number" min="1" name="staleDays" value="${s.staleDays}"></div>
           <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
@@ -322,7 +323,7 @@
     if (sec === 'autolock') patch = { autoLockMin: Math.max(0, Number(fd.get('autoLockMin')) || 0) };
     if (sec === 'prefs') {
       const dash = fd.getAll('dash');
-      patch = { weekStart: Number(fd.get('weekStart')), calendarView: fd.get('calendarView'), dateFormat: fd.get('dateFormat'), accent: fd.get('accent'), maxTasksPerDay: Math.max(1, Number(fd.get('maxTasksPerDay')) || 5), staleDays: Math.max(1, Number(fd.get('staleDays')) || 5), dashboard: Object.fromEntries(['deadlines', 'goals', 'charts', 'activity'].map(k => [k, dash.includes(k)])) };
+      patch = { weekStart: Number(fd.get('weekStart')), calendarView: fd.get('calendarView'), dateFormat: fd.get('dateFormat'), theme: fd.get('theme') === 'sol' ? 'sol' : 'claro', accent: Object.values(App.THEME_ACCENT).includes(String(fd.get('accent')).toLowerCase()) ? '' : fd.get('accent'), maxTasksPerDay: Math.max(1, Number(fd.get('maxTasksPerDay')) || 5), staleDays: Math.max(1, Number(fd.get('staleDays')) || 5), dashboard: Object.fromEntries(['deadlines', 'goals', 'charts', 'activity'].map(k => [k, dash.includes(k)])) };
     }
     try { await St.saveSettings(patch); U.toast('Configurações salvas.', 'good'); } catch (e) { U.fail(e); }
   }
