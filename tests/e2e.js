@@ -322,6 +322,43 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   await page.keyboard.press('Escape');
   check('Atalho Alt/Option+N abre nova tarefa', /tarefa/i.test(atalho), atalho);
 
+  // migração: um banco da versão 1, com dados, abre na versão 2 sem perder nada
+  {
+    const mctx = await browser.newContext({ locale: 'pt-BR' }); const mp = await mctx.newPage();
+    mp.on('pageerror', e => errors.push('migração: ' + e.message));
+    await mp.goto('file://' + path.resolve(__dirname, 'fixtures/banco-v1.html'));
+    await mp.waitForFunction(() => document.title === 'pronto');
+    await mp.goto(URL);
+    await mp.waitForSelector('.lock [name=p1]');
+    await mp.fill('.lock [name=p1]', 'migra1234'); await mp.fill('.lock [name=p2]', 'migra1234'); await mp.press('.lock [name=p2]', 'Enter');
+    await mp.waitForSelector('main h1');
+    const mig = await mp.evaluate(() => new Promise(ok => { const r = indexedDB.open('prancheta'); r.onsuccess = () => { const d = r.result; ok({ version: d.version, stores: [...d.objectStoreNames].sort().join(','), projects: Store.S.projects.map(p => p.name), tasks: Store.S.tasks.length, sessions: Store.S.sessions.length, name: Store.S.settings.name, theme: document.documentElement.dataset.theme || 'claro', accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() }); d.close(); }; }));
+    await mctx.close();
+    check('Migração do banco v1 → v2 preserva dados e configurações', mig.version === 2 && /courses/.test(mig.stores) && /runs/.test(mig.stores) && mig.projects[0] === 'Demanda da versão 1' && mig.tasks === 1 && mig.sessions === 1 && mig.name === 'Pessoa v1' && mig.accent.toLowerCase() === '#52664f', JSON.stringify(mig));
+  }
+
+  // cursos e biblioteca: cria pela escrita rápida, estuda com cronômetro, atualiza progresso, arquiva; material por link
+  await page.evaluate(() => Store.saveSettings({ autoLockMin: 0 }));
+  await go('cursos');
+  await page.keyboard.type('Illustrator essencial'); await page.keyboard.press('Enter'); await sleep(150);
+  const cid = await page.evaluate(() => Store.S.courses.find(c => c.name === 'Illustrator essencial').id);
+  await page.click(`[data-act="study:${cid}"]`); await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  await page.clock.runFor(30 * 60 * 1000);
+  await page.click('#timer-chip [data-act="session-stop"]'); await sleep(150);
+  await page.click('.toast button'); await page.fill('dialog[open] [name=progress]', '35'); await page.fill('dialog[open] [name=nextActivity]', 'Aula 5'); await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  const curso = await page.evaluate(id => { const c = Store.S.courses.find(x => x.id === id); return { status: c.status, progress: c.progress, next: c.nextActivity, min: Math.round(Model.courseStudyMs(Store.S, c, Date.now()) / 60000) }; }, cid);
+  await page.click(`[data-act="archive:courses:${cid}"]`); await sleep(150);
+  const escondido = await page.locator(`[data-act="study:${cid}"]`).count() === 0;
+  await go('biblioteca');
+  await page.keyboard.type('https://helpx.adobe.com/illustrator/using/keyboard-shortcuts.html'); await page.keyboard.press('Enter'); await sleep(150);
+  const mat = await page.evaluate(() => Store.S.resources.find(r => /keyboard-shortcuts/.test(r.url || '')));
+  await page.fill('[data-f="q"]', 'shortcuts'); await sleep(350);
+  const achou = await page.locator('main .card.resource').count();
+  await page.click(`[data-act="res-note:${mat.id}"]`); await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  const nota = await page.evaluate(() => Store.S.notes.some(n => n.title.startsWith('Sobre: ')));
+  check('Cursos e Biblioteca (estudo cronometrado sem duplicar, progresso, arquivar, busca, anotação a partir do material)',
+    curso.status === 'doing' && curso.progress === 35 && curso.next === 'Aula 5' && curso.min === 30 && escondido && mat && mat.type === 'Tutorial' && achou === 1 && nota, JSON.stringify({ curso, escondido, achou, nota }));
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));

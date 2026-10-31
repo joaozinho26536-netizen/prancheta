@@ -18,6 +18,12 @@
     tasks: () => S.tasks.filter(t => t.status !== 'done').sort((a, b) => a.title.localeCompare(b.title)).map(t => [t.id, t.title]),
     categories: () => S.settings.categories.map(c => [c, c]),
     pstatus: () => S.settings.projectStatuses.map(s => [s.id, s.name]),
+    tools: () => (S.settings.tools || []).map(t => [t, t]),
+    lcats: () => (S.settings.learningCategories || []).map(t => [t, t]),
+    courses: () => S.courses.filter(c => !c.archived).sort((a, b) => a.name.localeCompare(b.name)).map(c => [c.id, c.name]),
+    openCourses: () => S.courses.filter(c => !c.archived && c.status !== 'done').sort((a, b) => a.name.localeCompare(b.name)).map(c => [c.id, c.name]),
+    exercises: () => S.exercises.filter(x => !x.archived).sort((a, b) => a.title.localeCompare(b.title)).map(x => [x.id, x.title]),
+    resources: () => S.resources.filter(r => !r.archived).sort((a, b) => a.title.localeCompare(b.title)).map(r => [r.id, r.title]),
   };
   App.opt = opt;
   const urlCheck = k => v => { const bad = (v[k] || []).filter(x => !M.isUrl(x)); return bad.length ? { [k]: 'Endereço inválido: ' + bad[0] + ' (use https://…)' } : null; };
@@ -50,6 +56,7 @@
         { k: 'title', label: 'Título', required: true, full: true },
         { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects },
         { k: 'clientId', label: 'Solicitante', type: 'select', options: opt.clients, hint: 'Vazio: usa o solicitante da demanda.' },
+        { k: 'courseId', label: 'Curso (tarefa de estudo)', type: 'select', options: opt.courses },
         { k: 'status', label: 'Status', type: 'select', options: U.TASK_STATUSES, required: true },
         { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
         { k: 'date', label: 'Início previsto', type: 'date' }, { k: 'time', label: 'Horário programado', type: 'time' },
@@ -139,7 +146,53 @@
         { k: 'notes', label: 'Observações', type: 'textarea', full: true, rows: 2 },
       ], defaults: () => ({ metric: 'hours_week' }),
     },
+    courses: {
+      title: 'curso', fields: () => [
+        { k: 'name', label: 'Nome do curso', required: true, full: true },
+        { k: 'platform', label: 'Plataforma ou instituição' }, { k: 'instructor', label: 'Instrutor' },
+        { k: 'tool', label: 'Ferramenta', type: 'select', options: opt.tools }, { k: 'category', label: 'Categoria', type: 'select', options: opt.lcats },
+        { k: 'level', label: 'Nível', type: 'select', options: U.LEVELS }, { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
+        { k: 'status', label: 'Status', type: 'select', options: U.COURSE_STATUSES, required: true },
+        { k: 'progress', label: 'Progresso (%)', type: 'number', step: '1', hint: 'Você atualiza: a Prancheta não acessa a plataforma do curso.' },
+        { k: 'start', label: 'Início', type: 'date' }, { k: 'due', label: 'Previsão de conclusão', type: 'date' },
+        { k: 'totalH', label: 'Carga horária total (h)', type: 'number', step: '0.5' },
+        { k: 'extraMin', label: 'Tempo estudado fora do cronômetro (min)', type: 'number', step: '5', hint: 'Somado às sessões de estudo cronometradas.' },
+        { k: 'url', label: 'Link do curso', type: 'url', full: true },
+        { k: 'nextActivity', label: 'Próxima atividade de estudo', full: true, hint: 'Ex.: “Módulo 4 — máscaras de camada”.' },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true, rows: 2 },
+        { k: 'learnings', label: 'Avaliação pessoal e principais aprendizados', type: 'textarea', full: true, rows: 3 },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ status: 'not_started', priority: 'medium', progress: 0 }),
+      before(rec, old) {
+        rec.progress = rec.progress === '' || rec.progress == null ? 0 : Math.round(Number(rec.progress));
+        if (!old || old.progress !== rec.progress || old.nextActivity !== rec.nextActivity) rec.progressAt = now();
+        if (rec.status === 'done' && rec.progress < 100 && (!old || old.status !== 'done')) rec.progress = 100;
+        rec.completedAt = rec.status === 'done' ? (old && old.completedAt) || now() : null;
+        if (rec.status === 'doing' && !rec.start) rec.start = today();
+      },
+    },
+    resources: {
+      title: 'material', fields: () => [
+        { k: 'title', label: 'Título', required: true, full: true },
+        { k: 'type', label: 'Tipo', type: 'select', required: true, options: () => U.RESOURCE_TYPES.map(t => [t, t]) },
+        { k: 'status', label: 'Status', type: 'select', required: true, options: U.RESOURCE_STATUSES },
+        { k: 'url', label: 'Link', type: 'url', full: true, hint: 'Abre numa aba nova. A Prancheta não confere o conteúdo do link.' },
+        { k: 'tool', label: 'Ferramenta (opcional)', type: 'select', options: opt.tools }, { k: 'category', label: 'Categoria', type: 'select', options: opt.lcats },
+        { k: 'level', label: 'Nível', type: 'select', options: U.LEVELS },
+        { k: 'rating', label: 'Sua avaliação', type: 'select', options: [['5', '★★★★★ Excelente'], ['4', '★★★★ Muito bom'], ['3', '★★★ Bom'], ['2', '★★ Fraco'], ['1', '★ Ruim']] },
+        { k: 'tags', label: 'Etiquetas', type: 'tags' },
+        { k: 'favorite', type: 'checkbox', text: 'Favorito' },
+        { k: 'courseId', label: 'Curso relacionado', type: 'select', options: opt.courses },
+        { k: 'exerciseId', label: 'Exercício relacionado', type: 'select', options: opt.exercises },
+        { k: 'projectId', label: 'Demanda relacionada', type: 'select', options: opt.projects },
+        { k: 'filePath', label: 'Caminho do arquivo no computador', hint: 'Só anotação: o navegador não abre arquivos do seu disco sozinho.' },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true, rows: 2 },
+        { k: 'summary', label: 'Resumo e principais aprendizados', type: 'textarea', full: true, rows: 3 },
+        { k: 'notes', label: 'Anotações', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ type: 'Tutorial', status: 'new', tags: [] }),
+    },
   };
+  App.FORMS = FORMS;
 
   // abre o formulário de criação/edição de qualquer cadastro
   App.edit = function (type, id, defaults = {}) {
@@ -161,6 +214,11 @@
     projects: 'As tarefas, sessões, notas, referências e eventos ligados a ele continuam existindo, sem demanda. As revisões da demanda serão excluídas.',
     clients: 'Demandas, tarefas e notas deste solicitante continuam existindo, sem solicitante.',
     tasks: 'As sessões de tempo desta tarefa continuam registradas, sem tarefa.',
+    courses: 'Tarefas, sessões de estudo, materiais e exercícios ligados continuam existindo, sem o curso. Para guardar o histórico, prefira Arquivar.',
+    resources: 'Exercícios ligados continuam existindo, sem o material. Para guardar, prefira o status Arquivado.',
+    exercises: 'Sessões de prática e materiais ligados continuam existindo, sem o exercício.',
+    workflows: 'Fluxos já aplicados às demandas continuam com a cópia das etapas deles. Para só esconder o modelo, prefira Arquivar.',
+    runs: 'As marcações deste fluxo serão perdidas. Tarefas criadas a partir das etapas continuam existindo.',
   };
   App.del = async function (type, id) {
     const r = St.get(type, id); if (!r) return false;
@@ -180,7 +238,7 @@
   };
 
   // ---------- escrita rápida: digitar e apertar Enter, sem formulário ----------
-  const QUICK_HINT = { tasks: 'Nova tarefa: escreva e aperte Enter', projects: 'Nova demanda: escreva e aperte Enter', notes: 'Escreva uma anotação. A primeira linha vira o título.' };
+  const QUICK_HINT = { courses: 'Novo curso: escreva o nome e aperte Enter', resources: 'Novo material: escreva o título ou cole um link e aperte Enter', tasks: 'Nova tarefa: escreva e aperte Enter', projects: 'Nova demanda: escreva e aperte Enter', notes: 'Escreva uma anotação. A primeira linha vira o título.' };
   App.quick = (type, extra = {}) => {
     const attrs = h` data-quick="${type}" data-extra='${JSON.stringify(extra)}' placeholder="${QUICK_HINT[type]}" aria-label="${QUICK_HINT[type]}"`;
     return type === 'notes'
@@ -195,7 +253,9 @@
     f.dataset.busy = '1';
     const type = el.dataset.quick, F = FORMS[type];
     const rec = { ...F.defaults(), ...JSON.parse(el.dataset.extra || '{}') };
-    if (type === 'notes') { const [first, ...rest] = text.split('\n'); rec.title = first.trim().slice(0, 120); rec.body = first.trim().length > 120 ? text : rest.join('\n').trim(); }
+    if (type === 'courses') rec.name = text;
+    else if (type === 'resources') { if (M.isUrl(text)) { rec.url = text; rec.title = new URL(text).hostname.replace(/^www\./, '') + new URL(text).pathname.replace(/\/$/, ''); } else rec.title = text; }
+    else if (type === 'notes') { const [first, ...rest] = text.split('\n'); rec.title = first.trim().slice(0, 120); rec.body = first.trim().length > 120 ? text : rest.join('\n').trim(); }
     else {
       const q = M.parseQuick(text, now());
       rec[type === 'projects' ? 'name' : 'title'] = q.title || text;
@@ -255,6 +315,7 @@
       fields: [
         { k: 'projectId', label: 'Demanda', type: 'select', options: opt.openProjects },
         { k: 'taskId', label: 'Tarefa', type: 'select', options: opt.tasks },
+        { k: 'courseId', label: 'Curso (sessão de estudo)', type: 'select', options: opt.openCourses },
         { k: 'note', label: 'O que você vai fazer (opcional)', full: true },
         ...(active.workday() ? [] : [{ k: 'withWorkday', type: 'checkbox', text: 'Iniciar o expediente também', full: true }]),
       ],
@@ -265,8 +326,11 @@
         if (v.withWorkday && !active.workday()) await St.save('workdays', { start: t, end: null }, { verb: 'iniciado' });
         const task = v.taskId && St.get('tasks', v.taskId);
         const projectId = v.projectId || (task && task.projectId) || null;
-        await St.save('sessions', { start: t, end: null, projectId, taskId: v.taskId || null, note: v.note, pauses: [] }, { verb: 'iniciada' });
+        const courseId = v.courseId || (task && task.courseId) || null;
+        await St.save('sessions', { start: t, end: null, projectId, taskId: v.taskId || null, courseId, exerciseId: v.exerciseId || pre.exerciseId || null, note: v.note, pauses: [] }, { verb: 'iniciada' });
         if (task && task.status === 'todo') await St.save('tasks', { ...task, status: 'doing' }, { quiet: true });
+        const course = courseId && St.get('courses', courseId);
+        if (course && course.status === 'not_started') await St.save('courses', { ...course, status: 'doing', start: course.start || today() }, { verb: 'iniciado' });
         U.toast('Cronômetro iniciado.', 'good');
       },
     });
@@ -274,7 +338,13 @@
   App.stopSession = async function () {
     await St.reload();
     const s = active.session(); if (!s) return;
-    try { await St.save('sessions', closeSession(s, now()), { verb: 'encerrada' }); U.toast('Sessão encerrada: ' + U.fmtDur(M.total(M.workedIntervals({ ...s, end: now() }, S.breaks, now()))) + ' trabalhados.', 'good'); } catch (e) { U.fail(e); }
+    try {
+      await St.save('sessions', closeSession(s, now()), { verb: 'encerrada' });
+      const dur = U.fmtDur(M.total(M.workedIntervals({ ...s, end: now() }, S.breaks, now())));
+      // sessão de estudo: o tempo já foi registrado; oferece só atualizar progresso e próxima atividade
+      if (s.courseId && St.get('courses', s.courseId)) U.toast(`Estudo encerrado: ${dur} registrados no curso.`, 'good', 9000, { label: 'Atualizar progresso', fn: () => App.courseProgress(s.courseId) });
+      else U.toast('Sessão encerrada: ' + dur + ' trabalhados.', 'good');
+    } catch (e) { U.fail(e); }
   };
   App.pauseSession = async function () {
     const s = active.session(); if (!s || App.isPaused(s)) return;
@@ -307,7 +377,7 @@
     const base = old ? old.start : at9();
     const v = old ? { date: M.isoDate(old.start), startT: U.fmtTime(old.start), endT: old.end ? U.fmtTime(old.end) : '', endDate: old.end ? M.isoDate(old.end) : '', ...old } : { date: M.isoDate(base), type: S.settings.breakTypes[0].id };
     const fields = [{ k: 'date', label: 'Data de início', type: 'date', required: true }, { k: 'startT', label: 'Início', type: 'time', required: true }, { k: 'endT', label: 'Fim', type: 'time', hint: old && !old.end ? 'Vazio: continua em andamento.' : '' }, { k: 'endDate', label: 'Data do fim (se outro dia)', type: 'date' }];
-    if (type === 'sessions') fields.push({ k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects }, { k: 'taskId', label: 'Tarefa', type: 'select', options: () => S.tasks.map(t => [t.id, t.title]) }, { k: 'note', label: 'Descrição', full: true });
+    if (type === 'sessions') fields.push({ k: 'courseId', label: 'Curso (estudo)', type: 'select', options: opt.courses }, { k: 'exerciseId', label: 'Exercício (prática)', type: 'select', options: opt.exercises }, { k: 'projectId', label: 'Demanda', type: 'select', options: opt.projects }, { k: 'taskId', label: 'Tarefa', type: 'select', options: () => S.tasks.map(t => [t.id, t.title]) }, { k: 'note', label: 'Descrição', full: true });
     if (type === 'breaks') fields.push({ k: 'type', label: 'Tipo de pausa', type: 'select', required: true, options: () => S.settings.breakTypes.map(b => [b.id, b.name]) }, { k: 'note', label: 'Observação', full: true });
     U.form({
       title: (old ? 'Editar ' : 'Registrar ') + { sessions: 'sessão de trabalho', breaks: 'pausa', workdays: 'expediente' }[type], fields, value: v,
@@ -321,7 +391,7 @@
       onSave: async x => {
         if (old && !await U.ask({ title: 'Alterar este registro de horário?', text: 'Os totais de horas serão recalculados. A alteração fica guardada no histórico do registro.', ok: 'Alterar' })) throw Object.assign(new Error('cancelado'), { cancelled: true });
         const rec = { ...(old || { pauses: [] }), start: M.at(x.date, x.startT), end: x.endT ? M.at(x.endDate || x.date, x.endT) : null, manual: true };
-        if (type === 'sessions') Object.assign(rec, { projectId: x.projectId || (St.get('tasks', x.taskId) || {}).projectId || null, taskId: x.taskId || null, note: x.note });
+        if (type === 'sessions') Object.assign(rec, { projectId: x.projectId || (St.get('tasks', x.taskId) || {}).projectId || null, taskId: x.taskId || null, courseId: x.courseId || (St.get('tasks', x.taskId) || {}).courseId || null, exerciseId: x.exerciseId || null, note: x.note });
         if (type === 'breaks') { const bt = S.settings.breakTypes.find(b => b.id === x.type); Object.assign(rec, { type: x.type, typeName: bt ? bt.name : x.type, plannedMin: bt ? bt.min : null, note: x.note }); }
         if (rec.end == null && !old) throw Object.assign(new Error(''), { fields: { endT: 'Informe o horário de fim.' } });
         if (type === 'sessions' && rec.end == null && S.sessions.some(s => !s.end && s.id !== rec.id)) throw Object.assign(new Error(''), { fields: { endT: 'Já existe outra sessão ativa.' } });
@@ -342,6 +412,7 @@
     ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'],
     ['pausas', 'Pausas', 'coffee', 'rail', '', 'Tempo'],
     ['referencias', 'Referências criativas', 'image', 'rail', 'Referências', 'Criação'],
+    ['cursos', 'Cursos', 'cap', 'rail', '', 'Aprendizado'], ['biblioteca', 'Biblioteca', 'book', 'rail', '', 'Aprendizado'],
     ['metas', 'Metas', 'target', 'rail', '', 'Análise'], ['insights', 'Insights e sugestões', 'bulb', 'rail', 'Insights', 'Análise'],
   ];
   App.ROUTES = ROUTES;
@@ -389,6 +460,7 @@
       case 'new': App.edit(a, null, el.dataset.defaults ? JSON.parse(el.dataset.defaults) : {}); break;
       case 'edit': App.edit(a, b); break;
       case 'del': App.del(a, b); break;
+      case 'archive': App.toggleArchive(a, b); break;
       case 'go': go(a + (b ? '/' + b : '')); break;
       case 'toggle-task': App.toggleTask(a); break;
       case 'toggle-check': App.toggleCheck(a, b, c, el.dataset.item); break;
@@ -472,6 +544,8 @@
     S.refs.forEach(r => has(r.name, r.description, r.tags, r.typography) && out.push(['Referência', r.name, 'edit:refs:' + r.id]));
     S.revisions.forEach(r => has(r.version, r.feedback, r.changes) && out.push(['Revisão', (St.get('projects', r.projectId) || {}).name + ' · ' + r.version, 'edit:revisions:' + r.id]));
     S.events.forEach(ev => has(ev.title, ev.notes) && out.push(['Evento', ev.title + ' · ' + U.fmtDate(ev.date), 'edit:events:' + ev.id]));
+    S.courses.forEach(c => has(c.name, c.platform, c.instructor, c.description, c.learnings, c.notes, c.nextActivity) && out.push(['Curso', c.name, 'edit:courses:' + c.id]));
+    S.resources.forEach(r => has(r.title, r.description, r.summary, r.notes, r.tags, r.tool) && out.push(['Material', r.title, 'edit:resources:' + r.id]));
     return out.slice(0, 30);
   }
   function setupSearch() {
@@ -622,7 +696,7 @@
     document.querySelector('[data-rail-toggle]').addEventListener('click', () => setRail(!document.body.classList.contains('rail-open')));
     document.querySelector('[data-lock-now]').addEventListener('click', () => window.Lock.lockNow());
     document.querySelector('[data-open-search]').addEventListener('click', openSearch);
-    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
+    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target'], ['courses', 'Curso', 'cap'], ['resources', 'Material', 'book']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
     document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });
@@ -634,6 +708,7 @@
     }
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     App.applyAccent();
+    window.addEventListener('prancheta-outdated', () => U.toast('A Prancheta foi atualizada em outra aba. Recarregue esta aba para continuar salvando.', 'warn', 3600000, { label: 'Recarregar', fn: () => location.reload() }));
     await window.Lock.gate();
     setupMusic();
     St.onChange(() => { App.applyAccent(); render(); renderMusic(); });

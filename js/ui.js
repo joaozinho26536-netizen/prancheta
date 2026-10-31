@@ -43,6 +43,10 @@
   // no Mac, mostra ⌘ e ⌥ nos atalhos (Cmd+Enter salva; Option+letra é tratado pela tecla física)
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const keyMod = isMac ? '⌘' : 'Ctrl', keyAlt = isMac ? '⌥' : 'Alt';
+  const LEVELS = [['beginner', 'Iniciante'], ['intermediate', 'Intermediário'], ['advanced', 'Avançado']];
+  const COURSE_STATUSES = [['not_started', 'Não iniciado'], ['doing', 'Em andamento'], ['paused', 'Pausado'], ['done', 'Concluído']];
+  const RESOURCE_TYPES = ['Tutorial', 'Artigo', 'Documentação oficial', 'Vídeo', 'Curso', 'Livro', 'Arquivo local', 'Guia ou manual', 'Referência de design', 'Técnica', 'Atalhos de teclado', 'Processo de produção', 'Material próprio'];
+  const RESOURCE_STATUSES = [['new', 'Não estudado'], ['studying', 'Em estudo'], ['consulted', 'Consultado'], ['archived', 'Arquivado']];
   const PRIORITIES = [['low', 'Baixa'], ['medium', 'Média'], ['high', 'Alta'], ['urgent', 'Urgente']];
   const TASK_STATUSES = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['waiting', 'Aguardando'], ['done', 'Concluída']];
   const REVISION_STATUSES = [['waiting', 'Aguardando feedback'], ['changes', 'Alterações solicitadas'], ['reviewing', 'Em revisão'], ['approved', 'Aprovado']];
@@ -213,7 +217,7 @@
 
   window.UI = {
     esc, raw, h, html, fmtDate, fmtTime, fmtDateTime, fmtDur, fmtClock, fmtHours, WEEKDAYS, MONTHS, relDay,
-    PRIORITIES, TASK_STATUSES, REVISION_STATUSES, EVENT_TYPES, label, projectStatusName,
+    LEVELS, COURSE_STATUSES, RESOURCE_TYPES, RESOURCE_STATUSES, PRIORITIES, TASK_STATUSES, REVISION_STATUSES, EVENT_TYPES, label, projectStatusName,
     isMac, keyMod, keyAlt, icon, badge, priorityBadge, empty, toast, fail, dialog, ask, form, bars, hbars, meter, downloadFile, csv,
   };
 })();

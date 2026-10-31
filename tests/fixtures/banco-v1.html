@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Banco v1 (teste de migração)</title>
+<!-- Usado só por tests/e2e.js: cria o banco da Prancheta no formato da versão 1, com dados,
+     para conferir que a atualização para a versão 2 preserva tudo. -->
+<script>
+  const STORES_V1 = ['projects', 'tasks', 'clients', 'sessions', 'breaks', 'workdays', 'events', 'revisions', 'refs', 'notes', 'goals', 'activity'];
+  const r = indexedDB.open('prancheta', 1);
+  r.onupgradeneeded = () => { const d = r.result; STORES_V1.forEach(s => d.createObjectStore(s, { keyPath: 'id' })); d.createObjectStore('meta', { keyPath: 'key' }); };
+  r.onsuccess = () => {
+    const d = r.result, t = d.transaction(['projects', 'tasks', 'sessions', 'meta'], 'readwrite'), ts = Date.now();
+    t.objectStore('projects').put({ id: 'v1-demanda', name: 'Demanda da versão 1', status: 'doing', priority: 'high', created: ts, updated: ts, history: [], stages: [], links: [] });
+    t.objectStore('tasks').put({ id: 'v1-tarefa', title: 'Tarefa da versão 1', projectId: 'v1-demanda', status: 'todo', priority: 'medium', created: ts, updated: ts, history: [], checklist: [] });
+    t.objectStore('sessions').put({ id: 'v1-sessao', start: ts - 3600000, end: ts, projectId: 'v1-demanda', taskId: 'v1-tarefa', pauses: [], created: ts, updated: ts, history: [] });
+    t.objectStore('meta').put({ key: 'settings', value: { name: 'Pessoa v1', accent: '#4f8bff' } });
+    t.oncomplete = () => { d.close(); document.title = 'pronto'; };
+  };
+</script>

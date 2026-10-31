@@ -167,3 +167,32 @@ test('backup forjado com link perigoso, cor ou imagem externa é recusado', () =
   assert.strictEqual(bk({ refs: [{ id: 'r', name: 'X', image: 'https://evil.com/pixel.png' }] }).ok, false);
   assert.strictEqual(bk({ projects: [{ id: 'p', name: 'X', links: ['https://drive.google.com/x'] }], refs: [{ id: 'r', name: 'Y', palette: ['#fff', '#1a1a1a'], image: 'data:image/jpeg;base64,AAAA' }] }).ok, true);
 });
+
+test('cursos: tempo de estudo vem das sessões + minutos lançados, sem duplicar', () => {
+  const c = { id: 'c', extraMin: 30 };
+  const st = base({ courses: [c], sessions: [{ id: 's1', start: at(0, 9), end: at(0, 9, 45), courseId: 'c', pauses: [] }, { id: 's2', start: at(0, 10), end: at(0, 11), projectId: 'p', pauses: [] }] });
+  assert.strictEqual(M.courseStudyMs(st, c, at(1, 0)), 75 * MIN);
+  assert.strictEqual(M.studyMs(st, at(0, 0), at(1, 0), at(1, 0)), 45 * MIN);       // só a sessão de estudo
+  assert.strictEqual(M.timeSummary(st, at(0, 0), at(1, 0), at(1, 0)).workedMs, 105 * MIN); // horas trabalhadas não mudaram de regra
+  assert.strictEqual(M.lastActivity(st, 'courseId', c), at(0, 9, 45));
+  assert.strictEqual(M.lastActivity(st, 'courseId', { id: 'x' }), null);
+});
+
+test('validação dos cadastros novos', () => {
+  assert.ok(M.validate('courses', { name: 'X', status: 'doing', progress: 120 }).progress);
+  assert.ok(M.validate('courses', { name: 'X', status: 'doing', url: 'javascript:1' }).url);
+  assert.deepStrictEqual(M.validate('courses', { name: 'X', status: 'doing', progress: 40 }), {});
+  assert.ok(M.validate('resources', { title: 'X' }).type);
+  assert.ok(M.validate('exercises', { title: 'X', status: 'planned', evidence: ['ftp://a'] }).evidence);
+  assert.ok(M.validate('workflows', { name: 'X', steps: [{ title: '' }] }).steps);
+  assert.ok(M.validate('runs', { name: 'X', projectId: 'p' }).steps);
+});
+
+test('backup: v1 continua importável, v2 traz as listas novas, versão futura é recusada', () => {
+  const v1 = M.validateBackup({ app: 'prancheta', version: 1, data: { projects: [{ id: 'p', name: 'A' }] } });
+  assert.strictEqual(v1.ok, true);
+  assert.strictEqual(v1.counts.courses, 0);
+  const v2 = M.validateBackup({ app: 'prancheta', version: 2, data: { courses: [{ id: 'c', name: 'Curso', status: 'doing' }], resources: [{ id: 'r', title: 'T', type: 'Tutorial' }] } });
+  assert.strictEqual(v2.ok, true);
+  assert.strictEqual(M.validateBackup({ app: 'prancheta', version: 3, data: {} }).ok, false);
+});

@@ -320,6 +320,11 @@
     refs: { required: ['name'], urls: ['url'] },
     notes: { required: ['title'] },
     goals: { required: ['title', 'metric', 'target'], nums: ['target'] },
+    courses: { required: ['name', 'status'], dates: ['start', 'due'], nums: ['totalH', 'progress', 'extraMin'], urls: ['url'], order: [['start', 'due', 'A previsão de conclusão não pode ser antes do início.']] },
+    resources: { required: ['title', 'type'], urls: ['url'] },
+    exercises: { required: ['title', 'status'], dates: ['plannedDate'], nums: ['estimateMin', 'extraMin'], urls: ['resultUrl'] },
+    workflows: { required: ['name'], nums: ['version'] },
+    runs: { required: ['projectId', 'name'] },
     sessions: { required: ['start'] },
     breaks: { required: ['start'] },
     workdays: { required: ['start'] },
@@ -337,16 +342,24 @@
     if (type === 'projects' && (r.links || []).some(l => !isUrl(l))) e.links = 'Use só links completos começando com https://';
     if (type === 'refs' && (r.palette || []).some(c => !isHex(c))) e.palette = 'Use cores em hexadecimal, como #1a1a1a.';
     if (type === 'refs' && r.image && !isImageData(r.image)) e.image = 'Imagem inválida.';
+    if (type === 'courses' && r.progress !== '' && r.progress != null && Number(r.progress) > 100) e.progress = 'O progresso vai de 0 a 100%.';
+    if (type === 'exercises' && (r.evidence || []).some(l => !isUrl(l))) e.evidence = 'Use só links completos começando com https://';
+    if (type === 'exercises' && r.image && !isImageData(r.image)) e.image = 'Imagem inválida.';
+    if (type === 'workflows' && !Array.isArray(r.steps)) e.steps = 'O modelo precisa de uma lista de etapas.';
+    if (type === 'workflows' && Array.isArray(r.steps) && r.steps.some(s => !s || !String(s.title || '').trim())) e.steps = 'Toda etapa precisa de um título.';
+    if (type === 'runs' && !Array.isArray(r.steps)) e.steps = 'A execução precisa de uma lista de etapas.';
     if (type === 'events' && r.time && r.endTime && r.endTime < r.time) e.endTime = 'O término não pode ser antes do início.';
     return e;
   }
 
   // ---------- backup ----------
-  const STORES = ['projects', 'tasks', 'clients', 'sessions', 'breaks', 'workdays', 'events', 'revisions', 'refs', 'notes', 'goals', 'activity'];
+  const STORES = ['projects', 'tasks', 'clients', 'sessions', 'breaks', 'workdays', 'events', 'revisions', 'refs', 'notes', 'goals', 'activity',
+    'courses', 'resources', 'exercises', 'workflows', 'runs']; // v2: aprendizado, prática e fluxos
+  const BACKUP_VERSION = 2; // v1 (sem as listas novas) continua importável
   function validateBackup(obj) {
     const errors = [];
     if (!obj || typeof obj !== 'object' || obj.app !== 'prancheta') return { ok: false, errors: ['O arquivo não é um backup da Prancheta.'] };
-    if (typeof obj.version !== 'number' || obj.version > 1) errors.push('Versão de backup não suportada.');
+    if (typeof obj.version !== 'number' || obj.version > BACKUP_VERSION) errors.push('Este backup é de uma versão mais nova da Prancheta. Atualize a página e tente de novo.');
     const data = obj.data || {}, counts = {};
     for (const s of STORES) {
       const arr = data[s] ?? [];
@@ -374,6 +387,18 @@
       else if ((r.updated || 0) > (cur.updated || 0)) { map.set(r.id, r); updated++; }
     }
     return { records: [...map.values()], added, updated };
+  }
+
+  // ---------- aprendizado: tempo de estudo vem das sessões (sem contar duas vezes) + minutos lançados à mão ----------
+  function courseStudyMs(st, c, now) { return spentMs(st, 'courseId', c.id, now) + (Number(c.extraMin) || 0) * MIN; }
+  // última atividade registrada: fim de uma sessão ligada ao registro ou a última atualização de progresso
+  function lastActivity(st, key, rec) {
+    const ends = st.sessions.filter(s => s[key] === rec.id).map(s => s.end || s.start);
+    return Math.max(0, rec.progressAt || 0, ...ends) || null;
+  }
+  // tempo de estudo e prática num período (sessões com curso ou exercício)
+  function studyMs(st, from, to, now) {
+    return st.sessions.filter(s => s.courseId || s.exerciseId).reduce((t, s) => t + total(clipAll(workedIntervals(s, st.breaks, now), from, to)), 0);
   }
 
   // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
@@ -428,6 +453,8 @@
       { id: 'review', name: 'Em revisão', kind: 'active' }, { id: 'done', name: 'Concluída', kind: 'done' }, { id: 'cancelled', name: 'Cancelada', kind: 'cancelled' }],
     refCategories: ['Branding', 'Tipografia', 'Composição', 'Cores', 'Campanhas', 'Layouts', 'Geral'],
     noteKinds: ['Ideia', 'Briefing', 'Instrução', 'Feedback', 'Decisão criativa', 'Pendência', 'Importante'],
+    tools: ['Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign', 'Adobe Premiere Pro', 'Adobe After Effects', 'Adobe Lightroom', 'Adobe Acrobat', 'Figma', 'Canva'],
+    learningCategories: ['Fundamentos de design', 'Tipografia', 'Cores', 'Composição e layout', 'Edição de imagem', 'Ilustração', 'Vídeo e animação', 'Impressão e produção gráfica', 'Branding', 'Produtividade e atalhos', 'Outros'],
   };
 
   const Model = {
@@ -435,7 +462,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    BACKUP_VERSION, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

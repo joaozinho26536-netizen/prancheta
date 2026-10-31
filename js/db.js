@@ -4,9 +4,9 @@
 (function () {
   'use strict';
   const M = window.Model;
-  const DB_NAME = 'prancheta', DB_VERSION = 1, ACTIVITY_MAX = 500, HISTORY_MAX = 50;
-  const LABELS = { projects: 'Demanda', tasks: 'Tarefa', clients: 'Solicitante', events: 'Evento', revisions: 'Revisão', refs: 'Referência', notes: 'Anotação', goals: 'Meta', sessions: 'Sessão de trabalho', breaks: 'Pausa', workdays: 'Expediente' };
-  const NAME_KEY = { projects: 'name', clients: 'name', refs: 'name', tasks: 'title', events: 'title', notes: 'title', goals: 'title', revisions: 'version' };
+  const DB_NAME = 'prancheta', DB_VERSION = 2, ACTIVITY_MAX = 500, HISTORY_MAX = 50;
+  const LABELS = { projects: 'Demanda', tasks: 'Tarefa', clients: 'Solicitante', events: 'Evento', revisions: 'Revisão', refs: 'Referência', notes: 'Anotação', goals: 'Meta', sessions: 'Sessão de trabalho', breaks: 'Pausa', workdays: 'Expediente', courses: 'Curso', resources: 'Material', exercises: 'Exercício', workflows: 'Modelo de fluxo', runs: 'Fluxo da demanda' };
+  const NAME_KEY = { projects: 'name', clients: 'name', refs: 'name', tasks: 'title', events: 'title', notes: 'title', goals: 'title', revisions: 'version', courses: 'name', resources: 'title', exercises: 'title', workflows: 'name', runs: 'name' };
 
   let db = null;
   const listeners = new Set();
@@ -24,7 +24,14 @@
         for (const s of M.STORES) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
         if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
       };
-      r.onsuccess = () => { db = r.result; db.onversionchange = () => db.close(); ok(); };
+      // migração: onupgradeneeded acima só CRIA as listas que faltam (v1 → v2 ganha cursos, materiais,
+      // exercícios, fluxos e execuções); as que já existem, com seus dados, ficam intactas
+      r.onsuccess = () => {
+        db = r.result;
+        // outra aba abriu uma versão mais nova: esta solta o banco e avisa (gravações dariam erro)
+        db.onversionchange = () => { db.close(); window.dispatchEvent(new Event('prancheta-outdated')); };
+        ok();
+      };
       r.onerror = () => fail(r.error);
       r.onblocked = () => fail(new Error('Feche as outras abas da Prancheta e recarregue.'));
     });
@@ -94,17 +101,22 @@
     tx(['activity'], st => drop.forEach(a => st.activity.delete(a.id))).catch(() => {});
   }
   // exclusão com as relações resolvidas na mesma transação
+  const LINKS = {
+    projects: [['tasks', 'projectId'], ['sessions', 'projectId'], ['notes', 'projectId'], ['refs', 'projectId'], ['events', 'projectId'], ['resources', 'projectId']],
+    clients: [['projects', 'clientId'], ['tasks', 'clientId'], ['notes', 'clientId']],
+    tasks: [['sessions', 'taskId'], ['events', 'taskId']],
+    courses: [['tasks', 'courseId'], ['sessions', 'courseId'], ['resources', 'courseId'], ['exercises', 'courseId']],
+    resources: [['exercises', 'resourceId']],
+    exercises: [['sessions', 'exerciseId'], ['resources', 'exerciseId'], ['tasks', 'exerciseId']],
+    runs: [['tasks', 'runId']],
+  };
   async function remove(type, id) {
     const rec = S[type].find(r => r.id === id);
     if (!rec) return;
-    const unlink = [];   // [store, campo]
-    let cascade = [];    // [store, id]
-    if (type === 'projects') {
-      for (const s of ['tasks', 'sessions', 'notes', 'refs', 'events']) unlink.push([s, 'projectId']);
-      cascade = S.revisions.filter(r => r.projectId === id).map(r => ['revisions', r.id]);
-    }
-    if (type === 'clients') for (const s of ['projects', 'tasks', 'notes']) unlink.push([s, 'clientId']);
-    if (type === 'tasks') { unlink.push(['sessions', 'taskId']); unlink.push(['events', 'taskId']); }
+    // vínculos: os registros ligados continuam existindo, só perdem a ligação; revisões e execuções de
+    // fluxo pertencem à demanda e saem junto (o texto da confirmação avisa)
+    const unlink = (LINKS[type] || []).slice();   // [store, campo]
+    const cascade = type === 'projects' ? ['revisions', 'runs'].flatMap(s => S[s].filter(r => r.projectId === id).map(r => [s, r.id])) : [];
     const changed = [];
     for (const [s, f] of unlink) for (const r of S[s]) if (r[f] === id) changed.push([s, { ...r, [f]: null, updated: Date.now() }]);
     const stores = [...new Set([type, 'activity', ...changed.map(c => c[0]), ...cascade.map(c => c[0])])];
@@ -129,7 +141,7 @@
   function exportAll() {
     const data = { settings: S.settings };
     for (const s of M.STORES) data[s] = S[s];
-    return { app: 'prancheta', version: 1, exportedAt: new Date().toISOString(), data };
+    return { app: 'prancheta', version: M.BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
   }
   // mode 'replace' apaga tudo e grava o backup; 'merge' junta por id sem duplicar
   async function importAll(backup, mode) {

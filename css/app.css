@@ -155,7 +155,7 @@ main { padding: 24px; display: flex; flex-direction: column; gap: 16px; max-widt
 .icon-btn:hover { background: var(--surface-2); color: var(--fg); }
 .icon-btn[aria-pressed="true"] { color: var(--accent); }
 .link { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; font-size: 13px; }
-.title-btn { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-weight: 600; color: var(--fg); min-width: 0; }
+.title-btn { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-weight: 600; color: var(--fg); min-width: 0; overflow-wrap: anywhere; }
 .title-btn:hover { color: var(--accent); text-decoration: underline; }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
 .seg button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 6px 10px; cursor: pointer; color: var(--fg-2); }
@@ -388,6 +388,20 @@ dialog::backdrop { background: rgba(37, 42, 38, .35); }
 .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .stack { display: flex; flex-direction: column; gap: 8px; }
 .pad { padding: 8px; }
+
+/* aprendizado e prática */
+.group { display: flex; flex-direction: column; gap: 10px; }
+.group-title { font-size: 15px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px 12px; margin: 0; font-size: 12.5px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.next { font-size: 13px; color: var(--fg-2); background: var(--surface-2); border-radius: var(--radius-sm); padding: 6px 10px; }
+.card-actions { justify-content: flex-start !important; gap: 6px !important; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px; }
+.row-actions { white-space: nowrap; text-align: right; }
+.stars { color: #C08A1E; letter-spacing: 1px; font-size: 13px; }
+.stars .muted { color: var(--line-2); }
+.icon-btn[aria-pressed="true"] .ic { fill: #E0B040; stroke: #C08A1E; }
+.ic.fav { fill: #E0B040; stroke: #C08A1E; }
 
 /* escrita rápida */
 .quick { position: relative; display: flex; align-items: center; }
