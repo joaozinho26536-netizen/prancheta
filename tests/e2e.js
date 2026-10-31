@@ -359,6 +359,36 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   check('Cursos e Biblioteca (estudo cronometrado sem duplicar, progresso, arquivar, busca, anotação a partir do material)',
     curso.status === 'doing' && curso.progress === 35 && curso.next === 'Aula 5' && curso.min === 30 && escondido && mat && mat.type === 'Tutorial' && achou === 1 && nota, JSON.stringify({ curso, escondido, achou, nota }));
 
+  // prática: cria, pratica com cronômetro, envia para avaliação, avalia; exercício a partir de material; evidência inválida é recusada
+  await go('pratica');
+  await page.keyboard.type('Recriar cartaz suíço'); await page.keyboard.press('Enter'); await sleep(150);
+  const xid = await page.evaluate(() => Store.S.exercises.find(x => x.title === 'Recriar cartaz suíço').id);
+  await page.click(`[data-act="practice:${xid}"]`); await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  await page.clock.runFor(40 * 60 * 1000);
+  await page.click('#timer-chip [data-act="session-stop"]'); await sleep(150);
+  const praticaToast = await page.locator('.toast').last().innerText();
+  await go('pratica');
+  await page.click(`[data-act="ex-review:${xid}"]`); await sleep(150);
+  await page.click(`[data-act="evaluate:${xid}"]`);
+  await page.selectOption('dialog[open] [name=s0]', '4'); await page.selectOption('dialog[open] [name=s1]', '3'); await page.fill('dialog[open] [name=n1]', 'Grid ainda solto');
+  await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  const ex = await page.evaluate(id => { const x = Store.S.exercises.find(e => e.id === id); return { status: x.status, avg: Model.avgScore(x), min: Math.round(Model.exerciseMs(Store.S, x, Date.now()) / 60000), notas: x.scores.length }; }, xid);
+  await page.click(`[data-act="edit:exercises:${xid}"]`);
+  await page.fill('dialog[open] [name=evidence]', 'arquivo.psd');
+  await page.click('dialog[open] button[type=submit]');
+  const evErr = await page.locator('#f-evidence-err').innerText();
+  await page.click('dialog[open] [data-close]'); await page.click('dialog.small[open] button[value=yes]');
+  await go('biblioteca');
+  const rid = await page.evaluate(() => Store.S.resources[0].id);
+  await page.fill('[data-f="q"]', ''); await sleep(300);
+  await page.click(`[data-act="res-exercise:${rid}"]`);
+  const preTitle = await page.inputValue('dialog[open] [name=title]');
+  await page.click('dialog[open] button[type=submit]'); await sleep(150);
+  const fromRes = await page.evaluate(id => Store.S.exercises.some(x => x.resourceId === id), rid);
+  check('Prática (cronômetro, avaliação por critérios, evidência validada, exercício a partir de material)',
+    /40 min registrados no exercício/.test(praticaToast) && ex.status === 'done' && ex.avg === 3.5 && ex.min === 40 && ex.notas === 2 && /Link inválido/.test(evErr) && /^Praticar: /.test(preTitle) && fromRes,
+    JSON.stringify({ praticaToast, ex, evErr, preTitle, fromRes }));
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('solicitante/' + (await page.evaluate(() => Store.S.clients[0].id)));

@@ -196,3 +196,16 @@ test('backup: v1 continua importável, v2 traz as listas novas, versão futura �
   assert.strictEqual(v2.ok, true);
   assert.strictEqual(M.validateBackup({ app: 'prancheta', version: 3, data: {} }).ok, false);
 });
+
+test('prática: tempo, média das notas e evolução só com dados suficientes', () => {
+  const x = { id: 'x', extraMin: 15, scores: [{ score: 4 }, { score: 2 }, { score: '' }] };
+  const st = base({ exercises: [x], sessions: [{ id: 's', start: at(0, 14), end: at(0, 15), exerciseId: 'x', pauses: [] }] });
+  assert.strictEqual(M.exerciseMs(st, x, at(1, 0)), 75 * MIN);
+  assert.strictEqual(M.avgScore(x), 3);
+  assert.strictEqual(M.avgScore({ scores: [] }), null);
+  const ev = (d, s) => ({ evaluatedAt: new Date(d).getTime(), scores: [{ score: s }] });
+  assert.strictEqual(M.scoreEvolution([ev('2026-10-05', 2), ev('2026-10-20', 3)]), null);            // 2 avaliações: pouco
+  assert.strictEqual(M.scoreEvolution([ev('2026-10-05', 2), ev('2026-10-20', 3), ev('2026-10-25', 4)]), null); // 1 mês só
+  const evo = M.scoreEvolution([ev('2026-10-05T12:00', 2), ev('2026-10-20T12:00', 4), ev('2026-11-03T12:00', 5)]);
+  assert.deepStrictEqual(evo.map(e => [e.month, e.avg, e.count]), [['2026-10', 3, 2], ['2026-11', 5, 1]]);
+});

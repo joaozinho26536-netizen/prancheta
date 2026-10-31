@@ -238,12 +238,13 @@
   };
 
   // ---------- escrita rápida: digitar e apertar Enter, sem formulário ----------
-  const QUICK_HINT = { courses: 'Novo curso: escreva o nome e aperte Enter', resources: 'Novo material: escreva o título ou cole um link e aperte Enter', tasks: 'Nova tarefa: escreva e aperte Enter', projects: 'Nova demanda: escreva e aperte Enter', notes: 'Escreva uma anotação. A primeira linha vira o título.' };
+  const QUICK_HINT = { exercises: 'Novo exercício: escreva o desafio e aperte Enter', courses: 'Novo curso: escreva o nome e aperte Enter', resources: 'Novo material: escreva o título ou cole um link e aperte Enter', tasks: 'Nova tarefa: escreva e aperte Enter', projects: 'Nova demanda: escreva e aperte Enter', notes: 'Escreva uma anotação. A primeira linha vira o título.' };
+  const PARSES = ['tasks', 'projects']; // só estes entendem prazo e prioridade no texto
   App.quick = (type, extra = {}) => {
     const attrs = h` data-quick="${type}" data-extra='${JSON.stringify(extra)}' placeholder="${QUICK_HINT[type]}" aria-label="${QUICK_HINT[type]}"`;
     return type === 'notes'
       ? h`<form class="quick note-quick"><textarea rows="3"${attrs}></textarea><div class="quick-foot"><span class="small muted"><kbd>${U.keyMod}</kbd>+<kbd>Enter</kbd> salva</span><button class="btn primary small">Salvar anotação</button></div></form>`
-      : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">Enter cria · ex.: “até sexta 14h !urgente”</span></form>`;
+      : h`<form class="quick"><span class="quick-plus" aria-hidden="true">${icon('plus')}</span><input autocomplete="off"${attrs}><span class="small muted quick-tip">${PARSES.includes(type) ? 'Enter cria · ex.: “até sexta 14h !urgente”' : 'Enter cria · clique no item para detalhar'}</span></form>`;
   };
   document.addEventListener('submit', async e => {
     const f = e.target.closest('form.quick'); if (!f) return;
@@ -254,6 +255,7 @@
     const type = el.dataset.quick, F = FORMS[type];
     const rec = { ...F.defaults(), ...JSON.parse(el.dataset.extra || '{}') };
     if (type === 'courses') rec.name = text;
+    else if (type === 'exercises') rec.title = text;
     else if (type === 'resources') { if (M.isUrl(text)) { rec.url = text; rec.title = new URL(text).hostname.replace(/^www\./, '') + new URL(text).pathname.replace(/\/$/, ''); } else rec.title = text; }
     else if (type === 'notes') { const [first, ...rest] = text.split('\n'); rec.title = first.trim().slice(0, 120); rec.body = first.trim().length > 120 ? text : rest.join('\n').trim(); }
     else {
@@ -268,7 +270,7 @@
   });
   // prévia do que foi entendido no texto (prazo, horário, prioridade), antes do Enter
   document.addEventListener('input', e => {
-    const el = e.target.closest('input[data-quick]'); if (!el) return;
+    const el = e.target.closest('input[data-quick]'); if (!el || !PARSES.includes(el.dataset.quick)) return;
     const tip = el.parentElement.querySelector('.quick-tip'), q = M.parseQuick(el.value, now());
     const bits = [q.due && 'Prazo: ' + U.WEEKDAYS[new Date(M.parseDate(q.due)).getDay()] + ' ' + U.fmtDate(q.due), q.time && el.dataset.quick === 'tasks' && 'às ' + q.time, q.priority && U.label(U.PRIORITIES, q.priority)].filter(Boolean);
     tip.textContent = bits.length ? bits.join(' · ') : 'Enter cria · ex.: “até sexta 14h !urgente”';
@@ -316,6 +318,7 @@
         { k: 'projectId', label: 'Demanda', type: 'select', options: opt.openProjects },
         { k: 'taskId', label: 'Tarefa', type: 'select', options: opt.tasks },
         { k: 'courseId', label: 'Curso (sessão de estudo)', type: 'select', options: opt.openCourses },
+        { k: 'exerciseId', label: 'Exercício (sessão de prática)', type: 'select', options: () => S.exercises.filter(x => !x.archived && x.status !== 'done').map(x => [x.id, x.title]) },
         { k: 'note', label: 'O que você vai fazer (opcional)', full: true },
         ...(active.workday() ? [] : [{ k: 'withWorkday', type: 'checkbox', text: 'Iniciar o expediente também', full: true }]),
       ],
@@ -329,6 +332,8 @@
         const courseId = v.courseId || (task && task.courseId) || null;
         await St.save('sessions', { start: t, end: null, projectId, taskId: v.taskId || null, courseId, exerciseId: v.exerciseId || pre.exerciseId || null, note: v.note, pauses: [] }, { verb: 'iniciada' });
         if (task && task.status === 'todo') await St.save('tasks', { ...task, status: 'doing' }, { quiet: true });
+        const ex = (v.exerciseId || pre.exerciseId) && St.get('exercises', v.exerciseId || pre.exerciseId);
+        if (ex && ex.status === 'planned') await St.save('exercises', { ...ex, status: 'doing' }, { verb: 'iniciado' });
         const course = courseId && St.get('courses', courseId);
         if (course && course.status === 'not_started') await St.save('courses', { ...course, status: 'doing', start: course.start || today() }, { verb: 'iniciado' });
         U.toast('Cronômetro iniciado.', 'good');
@@ -343,6 +348,7 @@
       const dur = U.fmtDur(M.total(M.workedIntervals({ ...s, end: now() }, S.breaks, now())));
       // sessão de estudo: o tempo já foi registrado; oferece só atualizar progresso e próxima atividade
       if (s.courseId && St.get('courses', s.courseId)) U.toast(`Estudo encerrado: ${dur} registrados no curso.`, 'good', 9000, { label: 'Atualizar progresso', fn: () => App.courseProgress(s.courseId) });
+      else if (s.exerciseId && St.get('exercises', s.exerciseId)) U.toast(`Prática encerrada: ${dur} registrados no exercício.`, 'good', 9000, { label: 'Registrar resultado', fn: () => App.edit('exercises', s.exerciseId) });
       else U.toast('Sessão encerrada: ' + dur + ' trabalhados.', 'good');
     } catch (e) { U.fail(e); }
   };
@@ -412,7 +418,7 @@
     ['revisoes', 'Revisões', 'rotate', 'rail', '', 'Trabalho'], ['solicitantes', 'Solicitantes', 'users', 'rail', '', 'Trabalho'],
     ['pausas', 'Pausas', 'coffee', 'rail', '', 'Tempo'],
     ['referencias', 'Referências criativas', 'image', 'rail', 'Referências', 'Criação'],
-    ['cursos', 'Cursos', 'cap', 'rail', '', 'Aprendizado'], ['biblioteca', 'Biblioteca', 'book', 'rail', '', 'Aprendizado'],
+    ['cursos', 'Cursos', 'cap', 'rail', '', 'Aprendizado'], ['biblioteca', 'Biblioteca', 'book', 'rail', '', 'Aprendizado'], ['pratica', 'Prática', 'flask', 'rail', '', 'Aprendizado'],
     ['metas', 'Metas', 'target', 'rail', '', 'Análise'], ['insights', 'Insights e sugestões', 'bulb', 'rail', 'Insights', 'Análise'],
   ];
   App.ROUTES = ROUTES;
@@ -546,6 +552,7 @@
     S.events.forEach(ev => has(ev.title, ev.notes) && out.push(['Evento', ev.title + ' · ' + U.fmtDate(ev.date), 'edit:events:' + ev.id]));
     S.courses.forEach(c => has(c.name, c.platform, c.instructor, c.description, c.learnings, c.notes, c.nextActivity) && out.push(['Curso', c.name, 'edit:courses:' + c.id]));
     S.resources.forEach(r => has(r.title, r.description, r.summary, r.notes, r.tags, r.tool) && out.push(['Material', r.title, 'edit:resources:' + r.id]));
+    S.exercises.forEach(x => has(x.title, x.description, x.goal, x.technique, x.result, x.difficulties) && out.push(['Exercício', x.title, 'edit:exercises:' + x.id]));
     return out.slice(0, 30);
   }
   function setupSearch() {
@@ -696,7 +703,7 @@
     document.querySelector('[data-rail-toggle]').addEventListener('click', () => setRail(!document.body.classList.contains('rail-open')));
     document.querySelector('[data-lock-now]').addEventListener('click', () => window.Lock.lockNow());
     document.querySelector('[data-open-search]').addEventListener('click', openSearch);
-    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target'], ['courses', 'Curso', 'cap'], ['resources', 'Material', 'book']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
+    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target'], ['courses', 'Curso', 'cap'], ['resources', 'Material', 'book'], ['exercises', 'Exercício', 'flask']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
     document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });

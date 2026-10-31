@@ -401,6 +401,22 @@
     return st.sessions.filter(s => s.courseId || s.exerciseId).reduce((t, s) => t + total(clipAll(workedIntervals(s, st.breaks, now), from, to)), 0);
   }
 
+  // ---------- prática: tempo, média das notas e evolução (só com dados suficientes) ----------
+  function exerciseMs(st, x, now) { return spentMs(st, 'exerciseId', x.id, now) + (Number(x.extraMin) || 0) * MIN; }
+  function avgScore(x) {
+    const n = (x.scores || []).map(s => Number(s.score)).filter(v => v >= 1 && v <= 5);
+    return n.length ? n.reduce((a, b) => a + b, 0) / n.length : null;
+  }
+  // média mensal das avaliações; null quando há menos de 3 exercícios avaliados em 2 meses diferentes
+  function scoreEvolution(exercises) {
+    const ev = exercises.filter(x => x.evaluatedAt && avgScore(x) != null);
+    const byMonth = {};
+    for (const x of ev) { const k = isoDate(x.evaluatedAt).slice(0, 7); (byMonth[k] ||= []).push(avgScore(x)); }
+    const months = Object.keys(byMonth).sort();
+    if (ev.length < 3 || months.length < 2) return null;
+    return months.map(m => ({ month: m, avg: byMonth[m].reduce((a, b) => a + b, 0) / byMonth[m].length, count: byMonth[m].length }));
+  }
+
   // ---------- escrita rápida: prazo, horário e prioridade no próprio texto ----------
   // "Entregar banner até sexta 14h !urgente" → título "Entregar banner", prazo na próxima sexta, 14:00, urgente
   const WEEK = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
@@ -454,6 +470,7 @@
     refCategories: ['Branding', 'Tipografia', 'Composição', 'Cores', 'Campanhas', 'Layouts', 'Geral'],
     noteKinds: ['Ideia', 'Briefing', 'Instrução', 'Feedback', 'Decisão criativa', 'Pendência', 'Importante'],
     tools: ['Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign', 'Adobe Premiere Pro', 'Adobe After Effects', 'Adobe Lightroom', 'Adobe Acrobat', 'Figma', 'Canva'],
+    evalCriteria: ['Domínio técnico', 'Composição', 'Tipografia', 'Cores', 'Hierarquia visual', 'Precisão na execução', 'Organização do arquivo', 'Cumprimento do objetivo'],
     learningCategories: ['Fundamentos de design', 'Tipografia', 'Cores', 'Composição e layout', 'Edição de imagem', 'Ilustração', 'Vídeo e animação', 'Impressão e produção gráfica', 'Branding', 'Produtividade e atalhos', 'Outros'],
   };
 
@@ -462,7 +479,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    BACKUP_VERSION, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    BACKUP_VERSION, exerciseMs, avgScore, scoreEvolution, courseStudyMs, lastActivity, studyMs, parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

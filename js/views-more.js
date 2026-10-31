@@ -211,6 +211,9 @@
           <div class="field"><label for="s-cat">Categorias de demanda</label><textarea id="s-cat" name="categories" rows="8">${s.categories.join('\n')}</textarea><small class="hint">Uma por linha.</small></div>
           <div class="field"><label for="s-rc">Categorias de referência</label><textarea id="s-rc" name="refCategories" rows="8">${s.refCategories.join('\n')}</textarea></div>
           <div class="field"><label for="s-nk">Tipos de anotação</label><textarea id="s-nk" name="noteKinds" rows="8">${s.noteKinds.join('\n')}</textarea></div>
+          <div class="field"><label for="s-tools">Ferramentas</label><textarea id="s-tools" name="tools" rows="8">${(s.tools || []).join('\n')}</textarea><small class="hint">Usadas em cursos, materiais, exercícios e fluxos.</small></div>
+          <div class="field"><label for="s-lc">Categorias de aprendizado</label><textarea id="s-lc" name="learningCategories" rows="8">${(s.learningCategories || []).join('\n')}</textarea></div>
+          <div class="field"><label for="s-ec">Critérios de avaliação da prática</label><textarea id="s-ec" name="evalCriteria" rows="8">${(s.evalCriteria || []).join('\n')}</textarea></div>
         </div><footer><button class="btn primary">Salvar</button></footer></form>
 
       <form class="panel" data-sf="statuses"><h2>Status das demandas</h2>
@@ -303,8 +306,8 @@
       patch = { breakTypes: types, breakReminderMin: Math.max(0, Number(fd.get('breakReminderMin')) || 0), notify };
     }
     if (sec === 'lists') {
-      patch = { categories: [...new Set(lines('categories'))], refCategories: [...new Set(lines('refCategories'))], noteKinds: [...new Set(lines('noteKinds'))] };
-      if (!patch.categories.length || !patch.refCategories.length || !patch.noteKinds.length) return err('Nenhuma lista pode ficar vazia.');
+      patch = { categories: [...new Set(lines('categories'))], refCategories: [...new Set(lines('refCategories'))], noteKinds: [...new Set(lines('noteKinds'))], tools: [...new Set(lines('tools'))], learningCategories: [...new Set(lines('learningCategories'))], evalCriteria: [...new Set(lines('evalCriteria'))] };
+      if (Object.values(patch).some(l => !l.length)) return err('Nenhuma lista pode ficar vazia.');
     }
     if (sec === 'statuses') {
       const rows = [...f.querySelectorAll('#status-rows tr')].map(tr => ({ id: tr.dataset.id || M.uid(), name: tr.querySelector('[name=st-name]').value.trim(), kind: tr.querySelector('[name=st-kind]').value }));
