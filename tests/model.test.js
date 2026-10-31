@@ -159,3 +159,11 @@ test('escrita rápida entende prazo, horário e prioridade no texto', () => {
   assert.deepStrictEqual(q('Só um título'), { title: 'Só um título' });
   assert.strictEqual(q('Arte !média').priority, 'medium');
 });
+
+test('backup forjado com link perigoso, cor ou imagem externa é recusado', () => {
+  const bk = data => M.validateBackup({ app: 'prancheta', version: 1, data });
+  assert.strictEqual(bk({ projects: [{ id: 'p', name: 'X', links: ['javascript:alert(1)'] }] }).ok, false);
+  assert.strictEqual(bk({ refs: [{ id: 'r', name: 'X', palette: ['red;background:url(https://evil.com)'] }] }).ok, false);
+  assert.strictEqual(bk({ refs: [{ id: 'r', name: 'X', image: 'https://evil.com/pixel.png' }] }).ok, false);
+  assert.strictEqual(bk({ projects: [{ id: 'p', name: 'X', links: ['https://drive.google.com/x'] }], refs: [{ id: 'r', name: 'Y', palette: ['#fff', '#1a1a1a'], image: 'data:image/jpeg;base64,AAAA' }] }).ok, true);
+});

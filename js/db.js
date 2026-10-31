@@ -159,7 +159,12 @@
     await loadAll(); emit();
   }
 
+  // valores avulsos guardados à parte dos registros (ex.: a senha); não entram no backup
+  async function getMeta(key) { const r = await req(db.transaction(['meta'], 'readonly').objectStore('meta').get(key)); return r ? r.value : null; }
+  async function setMeta(key, value) { await tx(['meta'], st => value == null ? st.meta.delete(key) : st.meta.put({ key, value })); }
+
   window.Store = {
+    getMeta, setMeta,
     S, LABELS, async init() { await open(); await loadAll(); },
     save, remove, saveSettings, exportAll, importAll, clearDemo, bulkPut, reload: async () => { await loadAll(); emit(); },
     onChange(fn) { listeners.add(fn); },

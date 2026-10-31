@@ -597,7 +597,8 @@
     nav.insertAdjacentHTML('beforeend', U.html(ROUTES.filter(x => x[3] === 'top').map(([r, t, , , short]) => h`<a href="#${r}" data-r="${r}">${short || t}</a>`)));
     const railLink = ([r, t, ic]) => h`<a class="rail-btn" href="#${r}" data-r="${r}" aria-label="${t}" data-tip="${t}">${icon(ic)}</a>`;
     document.getElementById('rail').innerHTML = U.html(h`<button class="rail-btn" data-open-search aria-label="Buscar (/)" data-tip="Buscar">${icon('search')}</button>
-      ${ROUTES.filter(x => x[3] === 'rail').map(railLink)}<span class="rail-sep" aria-hidden="true"></span>${railLink(['configuracoes', 'Configurações', 'gear'])}`);
+      ${ROUTES.filter(x => x[3] === 'rail').map(railLink)}<span class="rail-sep" aria-hidden="true"></span><button class="rail-btn" data-lock-now aria-label="Bloquear" data-tip="Bloquear">${icon('lock')}</button>${railLink(['configuracoes', 'Configurações', 'gear'])}`);
+    document.querySelector('[data-lock-now]').addEventListener('click', () => window.Lock.lockNow());
     document.querySelector('[data-open-search]').addEventListener('click', openSearch);
     document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
@@ -610,6 +611,7 @@
       return;
     }
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    await window.Lock.gate();
     App.applyAccent();
     setupMusic();
     St.onChange(() => { App.applyAccent(); render(); renderMusic(); });

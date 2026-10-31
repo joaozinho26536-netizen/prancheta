@@ -308,6 +308,9 @@
   const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(parseDate(v));
   const isTime = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
   const isUrl = v => { try { const u = new URL(v); return ['http:', 'https:'].includes(u.protocol); } catch { return false; } };
+  const isHex = v => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
+  // imagem guardada pela própria Prancheta (reduzida no navegador); nunca um endereço externo
+  const isImageData = v => /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v);
   const RULES = {
     projects: { required: ['name'], dates: ['start', 'due'], nums: ['estimateH', 'value'], order: [['start', 'due', 'O prazo não pode ser antes do início.']] },
     tasks: { required: ['title'], dates: ['date', 'due'], times: ['time'], nums: ['estimateH'], order: [['date', 'due', 'O prazo não pode ser antes da data de início.']] },
@@ -331,6 +334,9 @@
     for (const k of rule.urls || []) if (r[k] && !isUrl(r[k])) e[k] = 'Use um endereço completo começando com https://';
     for (const [a, b, msg] of rule.order || []) if (r[a] && r[b] && r[b] < r[a]) e[b] = msg;
     if (['sessions', 'breaks', 'workdays'].includes(type) && r.end != null && r.end < r.start) e.end = 'O fim não pode ser antes do início.';
+    if (type === 'projects' && (r.links || []).some(l => !isUrl(l))) e.links = 'Use só links completos começando com https://';
+    if (type === 'refs' && (r.palette || []).some(c => !isHex(c))) e.palette = 'Use cores em hexadecimal, como #1a1a1a.';
+    if (type === 'refs' && r.image && !isImageData(r.image)) e.image = 'Imagem inválida.';
     if (type === 'events' && r.time && r.endTime && r.endTime < r.time) e.endTime = 'O término não pode ser antes do início.';
     return e;
   }
@@ -429,7 +435,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, jornadaSaldo, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    parseQuick, spotifyEmbed, validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    parseQuick, spotifyEmbed, validate, isUrl, isHex, isImageData, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

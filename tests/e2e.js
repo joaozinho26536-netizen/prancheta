@@ -21,6 +21,15 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   // relógio controlado: segunda-feira, 2 de novembro de 2026, 09:00
   await page.clock.install({ time: new Date('2026-11-02T09:00:00-03:00') });
   await page.goto(URL);
+  // primeiro acesso: cria a senha
+  await page.waitForSelector('.lock [name=p1]');
+  await page.fill('.lock [name=p1]', '12');
+  await page.fill('.lock [name=p2]', '12');
+  await page.press('.lock [name=p2]', 'Enter');
+  const shortMsg = await page.locator('.lock-msg').innerText();
+  await page.fill('.lock [name=p1]', 'cafe1234');
+  await page.fill('.lock [name=p2]', 'cafe1234');
+  await page.press('.lock [name=p2]', 'Enter');
   await page.waitForSelector('#nav a');
   const dlg = 'dialog[open]';
   const fill = async (k, v) => { const el = page.locator(`${dlg} [name="${k}"]`); (await el.evaluate(e => e.tagName)) === 'SELECT' ? await el.selectOption(v) : await el.fill(v); };
@@ -272,6 +281,22 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const linked = await page.evaluate(id => Store.S.tasks.some(t => t.title === 'Primeira versão' && t.projectId === id), dem.id);
   check('Escrita rápida em tarefas, anotações e demandas (sem formulário)', autofocus === 'tasks' && quickTasks === 2 && stillFocused && note && note.body === 'Usar fotos da equipe' && dem && dem.status && linked,
     JSON.stringify({ autofocus, quickTasks, stillFocused, note: note && note.body, dem: !!dem, linked }));
+
+  // senha: outra aba pede a senha; errada não entra, certa entra com os dados
+  const tab = await ctx.newPage();
+  tab.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  await tab.goto(URL + '#demandas');
+  await tab.waitForSelector('.lock [name=p1]');
+  const hiddenApp = await tab.evaluate(() => getComputedStyle(document.querySelector('.layout')).display === 'none');
+  await tab.fill('.lock [name=p1]', 'errada'); await tab.press('.lock [name=p1]', 'Enter');
+  await tab.waitForFunction(() => /incorreta/.test(document.querySelector('.lock-msg').textContent));
+  await tab.fill('.lock [name=p1]', 'cafe1234'); await tab.press('.lock [name=p1]', 'Enter');
+  await tab.waitForSelector('main h1');
+  const inside = await tab.evaluate(() => ({ locked: document.body.classList.contains('locked'), lockGone: !document.querySelector('.lock'), demandas: Store.S.projects.length }));
+  const savedLock = await tab.evaluate(async () => { const l = await Store.getMeta('lock'); return !!l && !JSON.stringify(l).includes('cafe1234'); });
+  await tab.close();
+  check('Senha: criação exige 4+ caracteres, outra aba pede a senha, errada é recusada, só o hash é guardado',
+    /pelo menos 4/.test(shortMsg) && hiddenApp && !inside.locked && inside.lockGone && inside.demandas >= 1 && savedLock, JSON.stringify({ shortMsg, hiddenApp, inside, savedLock }));
 
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);

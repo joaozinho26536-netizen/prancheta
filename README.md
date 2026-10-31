@@ -61,6 +61,16 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - Cada gravação só aparece na tela depois que o banco confirma. Se falhar (por exemplo, disco cheio), aparece uma mensagem de erro e nada é perdido em silêncio.
 - Abas abertas ao mesmo tempo se avisam a cada mudança (BroadcastChannel) e recarregam os dados.
 
+## Senha e segurança
+
+- **Senha:** no primeiro acesso, a Prancheta pede para criar uma senha (mínimo de 4 caracteres). Depois, ela é pedida ao abrir a Prancheta numa aba ou janela nova, numa tela no estilo da tela de bloqueio do Mac. Recarregar a mesma aba não pede de novo. O cadeado no trilho de ícones trava na hora. Após 5 tentativas erradas, é preciso esperar 30 s. A troca de senha fica em Configurações → Senha.
+- **Como a senha é guardada:** só um hash (PBKDF2-SHA256, 210 mil iterações, sal aleatório), nunca a senha. Ele fica fora do backup.
+- **Esqueceu a senha?** Não há recuperação. A tela de senha oferece apagar tudo e começar de novo; um backup exportado pode ser importado depois.
+- **Limite:** a senha é uma trava de acesso, não criptografia. Quem tiver o computador destravado e souber usar as ferramentas de desenvolvedor do navegador consegue ler os dados. Proteja também o usuário do computador.
+- **A página não envia dados a lugar nenhum:** uma regra de segurança (Content-Security-Policy) só permite o próprio código, as fontes do Google e o player do Spotify, e bloqueia qualquer envio de dados (`connect-src 'none'`) ou imagem de outro site.
+- **Backup forjado:** links precisam começar com `https://` (ou `http://`), cores precisam ser hexadecimais e imagens precisam ser as reduzidas pela própria Prancheta. Isso vale no formulário, na importação e na hora de mostrar.
+- **Conta do GitHub:** como o site é publicado pelo repositório, quem tomar a conta poderia alterar o código. Mantenha a verificação em duas etapas ligada.
+
 ## Backup e recuperação
 
 **Fazer backup:** Configurações → Dados e backup → **Exportar backup completo**. O arquivo `prancheta-backup_AAAA-MM-DD_HHhMM.json` traz todos os registros e as configurações. Guarde-o num lugar seguro (pendrive, Drive, e-mail para você mesmo). Faça isso com frequência.
@@ -112,5 +122,5 @@ node --test tests/model.test.js   # regras de cálculo (Node 18+)
 node tests/e2e.js                 # fluxos no navegador (precisa do Playwright com Chromium)
 ```
 
-- `tests/model.test.js`: 16 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify.
-- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 28 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.
+- `tests/model.test.js`: 17 testes de regras. Cobrem subtração de intervalos, pausa que não conta como trabalho, pausas da sessão, sessão ativa calculada pelo horário real, divisão na meia-noite, tempo desde a última pausa, progresso e atraso, validação, backup (validação e mescla sem duplicar), metas, insights (com e sem dados suficientes), relatório (no prazo e fora do prazo), saldo de jornada e leitura de links do Spotify.
+- `tests/e2e.js`: abre `index.html` direto do disco no Chromium, com relógio controlado, e faz 29 verificações dos 15 fluxos exigidos: criar, editar e excluir demanda; criar e concluir tarefa; indicadores do dashboard; filtros e busca; persistência após recarregar; recuperação do cronômetro após recarregar; cálculo de horas e pausas; associação demanda, tarefa e tempo; exportar, mesclar e substituir backup; dados inválidos (formulário e backup); confirmação antes de excluir; ausência de duplicação; calendário nas três visões; relatórios atualizados; navegação por todas as páginas sem erros no console.

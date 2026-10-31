@@ -228,12 +228,12 @@
           <section class="panel"><header class="panel-head"><h2>Etapas de produção</h2></header>
             ${(p.stages || []).length ? h`<ul class="checklist">${p.stages.map(c => h`<li><label class="check"><input type="checkbox"${c.done ? U.raw(' checked') : ''} data-act="toggle-check:projects:${id}:stages" data-item="${c.id}"> <span class="${c.done ? 'done' : ''}">${c.text}</span></label></li>`)}</ul>` : h`<p class="muted">Nenhuma etapa. Adicione em Editar.</p>`}</section>
           <section class="panel"><header class="panel-head"><h2>Arquivos e links</h2></header>
-            ${(p.links || []).length ? h`<ul class="links">${p.links.map(l => h`<li><a href="${l}" target="_blank" rel="noopener noreferrer">${icon('link', 'sm')}${l.replace(/^https?:\/\//, '')}</a></li>`)}</ul>` : h`<p class="muted">Nenhum link.</p>`}</section>
+            ${(p.links || []).length ? h`<ul class="links">${p.links.filter(M.isUrl).map(l => h`<li><a href="${l}" target="_blank" rel="noopener noreferrer">${icon('link', 'sm')}${l.replace(/^https?:\/\//, '')}</a></li>`)}</ul>` : h`<p class="muted">Nenhum link.</p>`}</section>
           ${p.notes ? h`<section class="panel"><h3>Observações</h3><p class="pre">${p.notes}</p></section>` : ''}
           <section class="panel"><header class="panel-head"><h2>Anotações</h2><button class="btn small" data-act="new:notes" data-defaults='${JSON.stringify({ projectId: id, clientId: p.clientId || '' })}'>${icon('plus')}</button></header>
             ${notes.length ? h`<ul class="rows">${notes.map(n => h`<li><button class="row-btn" data-act="edit:notes:${n.id}">${n.pinned ? icon('pin', 'sm') : ''}<span class="grow ellipsis">${n.title}</span><span class="badge muted">${n.kind}</span></button></li>`)}</ul>` : h`<p class="muted">Nenhuma anotação.</p>`}</section>
           <section class="panel"><header class="panel-head"><h2>Referências</h2><button class="btn small" data-act="new:refs" data-defaults='${JSON.stringify({ projectId: id })}'>${icon('plus')}</button></header>
-            ${refs.length ? h`<ul class="rows">${refs.map(r => h`<li><button class="row-btn" data-act="edit:refs:${r.id}"><span class="grow ellipsis">${r.name}</span><span class="swatches">${(r.palette || []).map(c => h`<i style="background:${c}"></i>`)}</span></button></li>`)}</ul>` : h`<p class="muted">Nenhuma referência.</p>`}</section>
+            ${refs.length ? h`<ul class="rows">${refs.map(r => h`<li><button class="row-btn" data-act="edit:refs:${r.id}"><span class="grow ellipsis">${r.name}</span><span class="swatches">${(r.palette || []).filter(M.isHex).map(c => h`<i style="background:${c}"></i>`)}</span></button></li>`)}</ul>` : h`<p class="muted">Nenhuma referência.</p>`}</section>
         </div>
       </div>`;
     },

@@ -18,12 +18,12 @@
       ${S.refs.length ? h`<div class="toolbar"><input type="search" data-f="q" value="${v.q}" placeholder="Buscar por nome, palavra-chave, tipografia" aria-label="Buscar referências">${H.sel('category', S.settings.refCategories.map(c => [c, c]), v.category, 'Todas as categorias')}${H.sel('tag', allTags(S.refs).map(t => [t, t]), v.tag, 'Todas as palavras-chave')}${H.sel('project', App.opt.projects(), v.project, 'Todas as demandas')}</div>` : ''}
       ${!S.refs.length ? U.empty('Biblioteca vazia', 'Guarde links, paletas e tipografias que inspiram suas demandas. Imagens podem ser anexadas (ficam reduzidas no navegador).', h`<button class="btn primary" data-act="new:refs">${icon('plus')} Nova referência</button>`)
         : !list.length ? U.empty('Nada encontrado', 'Ajuste a busca ou os filtros.') : h`<div class="cards refs">${list.map(r => h`<article class="card ref">
-          ${r.image ? h`<button class="ref-img" data-act="edit:refs:${r.id}"><img src="${r.image}" alt="${r.name}" loading="lazy"></button>` : ''}
+          ${M.isImageData(r.image || '') ? h`<button class="ref-img" data-act="edit:refs:${r.id}"><img src="${r.image}" alt="${r.name}" loading="lazy"></button>` : ''}
           <header><button class="title-btn" data-act="edit:refs:${r.id}">${r.name}</button>${U.badge(r.category || 'Geral', 'muted')}</header>
-          ${(r.palette || []).length ? h`<div class="palette">${r.palette.map(c => h`<span style="background:${c}" title="${c}"></span>`)}</div><p class="mono small muted">${r.palette.join('  ')}</p>` : ''}
+          ${(r.palette || []).length ? h`<div class="palette">${r.palette.filter(M.isHex).map(c => h`<span style="background:${c}" title="${c}"></span>`)}</div><p class="mono small muted">${r.palette.join('  ')}</p>` : ''}
           ${r.typography ? h`<p class="small">${icon('type', 'sm')} ${r.typography}</p>` : ''}
           ${r.description ? h`<p class="small muted clamp">${r.description}</p>` : ''}
-          <footer>${(r.tags || []).map(t => h`<button class="tag" data-act="ref-tag:${t}">#${t}</button>`)}<span class="grow"></span>${r.url ? h`<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="icon-btn" aria-label="Abrir link">${icon('link')}</a>` : ''}</footer>
+          <footer>${(r.tags || []).map(t => h`<button class="tag" data-act="ref-tag:${t}">#${t}</button>`)}<span class="grow"></span>${M.isUrl(r.url || '') ? h`<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="icon-btn" aria-label="Abrir link">${icon('link')}</a>` : ''}</footer>
           ${r.projectId ? h`<p class="small muted">${icon('folder', 'sm')} ${H.pname(r.projectId)}</p>` : ''}${r.filePath ? h`<p class="small muted mono ellipsis" title="${r.filePath}">${r.filePath}</p>` : ''}
         </article>`)}</div>`}`;
     },
@@ -230,6 +230,15 @@
           <div class="field full"><span class="label">Blocos da página inicial</span><div class="checks">${[['deadlines', 'Prazos e compromissos'], ['goals', 'Metas da semana'], ['charts', 'Gráficos'], ['activity', 'Atividades recentes']].map(([k, l]) => h`<label class="check"><input type="checkbox" name="dash" value="${k}"${s.dashboard[k] ? U.raw(' checked') : ''}> ${l}</label>`)}</div></div>
         </div><footer><button class="btn primary">Salvar</button></footer></form>
 
+      <form class="panel" data-sf="password"><h2>Senha</h2>
+        <p class="small muted">A senha é pedida ao abrir a Prancheta numa aba nova. Para travar agora, use o cadeado no trilho de ícones. Ela impede que outra pessoa abra a Prancheta no seu navegador; os dados em si não ficam criptografados.</p>
+        <div class="form-grid">
+          <div class="field"><label for="s-pw0">Senha atual</label><input id="s-pw0" type="password" name="current" autocomplete="current-password"></div>
+          <div class="field"></div>
+          <div class="field"><label for="s-pw1">Nova senha</label><input id="s-pw1" type="password" name="next" autocomplete="new-password"></div>
+          <div class="field"><label for="s-pw2">Repita a nova senha</label><input id="s-pw2" type="password" name="again" autocomplete="new-password"></div>
+        </div><footer><button class="btn primary">Trocar senha</button></footer></form>
+
       <section class="panel" id="dados"><h2>Dados e backup</h2>
         <div class="notice">${icon('info')}<p>Tudo fica no armazenamento local (IndexedDB) <strong>deste navegador neste computador</strong>. Não há sincronização em nuvem nem backup automático externo. Outro navegador ou computador não vê estes dados, e limpar os dados do site apaga tudo. <strong>Exporte um backup regularmente</strong> e guarde o arquivo em local seguro.</p></div>
         <p class="small" id="storage-status">Verificando armazenamento…</p>
@@ -299,6 +308,11 @@
       const missing = S.projects.find(p => !rows.some(r => r.id === p.status));
       if (missing) return err(`O status de “${missing.name}” está em uso e não pode ser removido.`);
       patch = { projectStatuses: rows };
+    }
+    if (sec === 'password') {
+      if (fd.get('next') !== fd.get('again')) return err('As novas senhas não são iguais.');
+      try { await window.Lock.changePassword(String(fd.get('current')), String(fd.get('next'))); f.reset(); U.toast('Senha trocada.', 'good'); } catch (e) { err(e.message); }
+      return;
     }
     if (sec === 'prefs') {
       const dash = fd.getAll('dash');
