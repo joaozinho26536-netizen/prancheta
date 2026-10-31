@@ -1,0 +1,522 @@
+// Casca da aplicação: rotas, barra superior, formulários de cada cadastro,
+// ações de tempo (expediente, sessões, pausas), busca global, lembretes,
+// atalhos de teclado e dados de demonstração.
+(function () {
+  'use strict';
+  const M = window.Model, U = window.UI, St = window.Store, S = St.S;
+  const { h, icon } = U;
+  const Views = window.Views = window.Views || {};
+  const App = window.App = { vs: {} };
+  const now = () => Date.now();
+  const today = () => M.isoDate(now());
+
+  // ---------- opções compartilhadas pelos formulários ----------
+  const opt = {
+    projects: () => S.projects.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.id, p.name]),
+    openProjects: () => S.projects.filter(p => !M.isClosed(S.settings, p)).sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.id, p.name]),
+    clients: () => S.clients.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => [c.id, c.name]),
+    tasks: () => S.tasks.filter(t => t.status !== 'done').sort((a, b) => a.title.localeCompare(b.title)).map(t => [t.id, t.title]),
+    categories: () => S.settings.categories.map(c => [c, c]),
+    pstatus: () => S.settings.projectStatuses.map(s => [s.id, s.name]),
+  };
+  App.opt = opt;
+  const urlCheck = k => v => { const bad = (v[k] || []).filter(x => !M.isUrl(x)); return bad.length ? { [k]: 'Endereço inválido: ' + bad[0] + ' (use https://…)' } : null; };
+
+  const FORMS = {
+    projects: {
+      title: 'projeto', fields: () => [
+        { k: 'name', label: 'Nome do projeto', required: true, full: true },
+        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients },
+        { k: 'category', label: 'Categoria', type: 'select', options: opt.categories },
+        { k: 'status', label: 'Status', type: 'select', options: opt.pstatus, required: true },
+        { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
+        { k: 'start', label: 'Início', type: 'date' }, { k: 'due', label: 'Prazo de entrega', type: 'date' },
+        { k: 'estimateH', label: 'Horas estimadas', type: 'number', step: '0.5' },
+        { k: 'value', label: 'Valor (R$, opcional)', type: 'number', step: '0.01' },
+        { k: 'paidValue', label: 'Valor recebido (R$)', type: 'number', step: '0.01', hint: 'Fica separado do controle de horas.' },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true },
+        { k: 'goal', label: 'Objetivo', type: 'textarea', full: true, rows: 2 },
+        { k: 'stages', label: 'Etapas de produção', type: 'checklist', full: true },
+        { k: 'links', label: 'Arquivos e links de referência', type: 'lines', full: true, hint: 'Links completos (https://…), um por linha.' },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true },
+      ], defaults: () => ({ status: S.settings.projectStatuses[0].id, priority: 'medium', start: today(), stages: [] }),
+      check: urlCheck('links'),
+      before(rec, old) {
+        if (!old || old.status !== rec.status) rec.statusSince = now();
+        const done = M.statusKind(S.settings, rec.status) === 'done';
+        rec.completedAt = done ? (old && old.completedAt) || now() : null;
+      },
+    },
+    tasks: {
+      title: 'tarefa', fields: () => [
+        { k: 'title', label: 'Título', required: true, full: true },
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients, hint: 'Vazio: usa o cliente do projeto.' },
+        { k: 'status', label: 'Status', type: 'select', options: U.TASK_STATUSES, required: true },
+        { k: 'priority', label: 'Prioridade', type: 'select', options: U.PRIORITIES, required: true },
+        { k: 'date', label: 'Início previsto', type: 'date' }, { k: 'time', label: 'Horário programado', type: 'time' },
+        { k: 'due', label: 'Prazo final', type: 'date' },
+        { k: 'estimateH', label: 'Tempo estimado (h)', type: 'number', step: '0.25' },
+        { k: 'reminder', label: 'Lembrete', type: 'datetime-local', hint: 'Avisa enquanto a Prancheta estiver aberta.' },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true },
+        { k: 'checklist', label: 'Subtarefas', type: 'checklist', full: true },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ status: 'todo', priority: 'medium', checklist: [] }),
+      before(rec, old) {
+        if (!rec.clientId && rec.projectId) rec.clientId = (St.get('projects', rec.projectId) || {}).clientId || '';
+        rec.completedAt = rec.status === 'done' ? (old && old.completedAt) || now() : null;
+        if (!old || old.reminder !== rec.reminder) rec.remindedAt = null;
+      },
+      after(rec, old) {
+        if (!old && (rec.due || rec.date)) U.toast('Tarefa criada. Ela aparece no calendário em ' + U.fmtDate(rec.date || rec.due) + '.', '', 5000, { label: 'Ver no calendário', fn: () => { App.vs.calendar = { ...(App.vs.calendar || {}), cursor: M.parseDate(rec.date || rec.due) }; go('calendario'); } });
+      },
+    },
+    clients: {
+      title: 'cliente', fields: () => [
+        { k: 'name', label: 'Nome ou nome empresarial', required: true, full: true },
+        { k: 'contactName', label: 'Pessoa de contato' }, { k: 'email', label: 'E-mail', type: 'email' },
+        { k: 'phone', label: 'Telefone', type: 'tel' }, { k: 'status', label: 'Relacionamento', type: 'select', options: U.CLIENT_STATUSES },
+        { k: 'agreedValue', label: 'Valor acordado (R$)', type: 'number', step: '0.01', hint: 'Contrato mensal ou combinado geral, se houver.' },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true, rows: 2 },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true },
+      ], defaults: () => ({ status: 'active' }),
+      check: v => v.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email) ? { email: 'E-mail inválido.' } : null,
+    },
+    events: {
+      title: 'evento', fields: () => [
+        { k: 'title', label: 'Título', required: true, full: true },
+        { k: 'type', label: 'Tipo', type: 'select', options: U.EVENT_TYPES, required: true },
+        { k: 'date', label: 'Data', type: 'date', required: true },
+        { k: 'time', label: 'Início', type: 'time' }, { k: 'endTime', label: 'Término', type: 'time' },
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'reminderMin', label: 'Lembrar (minutos antes)', type: 'number' },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true },
+      ], defaults: () => ({ type: 'meeting', date: today() }),
+      before(rec, old) { if (!old || old.date !== rec.date || old.time !== rec.time || old.reminderMin !== rec.reminderMin) rec.remindedAt = null; },
+    },
+    revisions: {
+      title: 'revisão', fields: () => [
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects, required: true },
+        { k: 'version', label: 'Versão do material', required: true, hint: 'Ex.: v2, R3, “versão final”.' },
+        { k: 'sentAt', label: 'Data de envio', type: 'date' },
+        { k: 'status', label: 'Status', type: 'select', options: U.REVISION_STATUSES, required: true },
+        { k: 'nextDue', label: 'Próxima entrega prevista', type: 'date' },
+        { k: 'feedback', label: 'Feedback recebido', type: 'textarea', full: true },
+        { k: 'changes', label: 'Alterações solicitadas', type: 'textarea', full: true },
+        { k: 'notes', label: 'Observações e decisões', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ status: 'waiting', sentAt: today() }),
+    },
+    refs: {
+      title: 'referência', fields: () => [
+        { k: 'name', label: 'Nome', required: true, full: true },
+        { k: 'category', label: 'Categoria', type: 'select', options: () => S.settings.refCategories.map(c => [c, c]) },
+        { k: 'url', label: 'Link externo', type: 'url' },
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'tags', label: 'Palavras-chave', type: 'tags' },
+        { k: 'palette', label: 'Paleta de cores', type: 'tags', hint: 'Códigos hexadecimais, ex.: #1a1a1a, #f2c14e' },
+        { k: 'typography', label: 'Tipografia' },
+        { k: 'filePath', label: 'Caminho do arquivo no computador', hint: 'Só anotação: o navegador não abre arquivos do seu disco sozinho.' },
+        { k: 'image', label: 'Imagem (opcional)', type: 'image', full: true },
+        { k: 'description', label: 'Descrição', type: 'textarea', full: true, rows: 2 },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ category: 'Geral', tags: [], palette: [] }),
+      check: v => { const bad = (v.palette || []).filter(c => !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)); return bad.length ? { palette: 'Cor inválida: ' + bad[0] } : null; },
+    },
+    notes: {
+      title: 'anotação', fields: () => [
+        { k: 'title', label: 'Título', required: true, full: true },
+        { k: 'kind', label: 'Tipo', type: 'select', options: () => S.settings.noteKinds.map(c => [c, c]) },
+        { k: 'pinned', label: '', type: 'checkbox', text: 'Fixar no topo' },
+        { k: 'body', label: 'Conteúdo', type: 'textarea', full: true, rows: 8 },
+        { k: 'tags', label: 'Etiquetas', type: 'tags' },
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects },
+        { k: 'clientId', label: 'Cliente', type: 'select', options: opt.clients },
+      ], defaults: () => ({ kind: 'Ideia', tags: [] }),
+    },
+    goals: {
+      title: 'meta', fields: () => [
+        { k: 'title', label: 'Nome da meta', required: true, full: true },
+        { k: 'metric', label: 'O que medir', type: 'select', required: true, options: () => Object.entries(M.GOAL_METRICS).map(([k, v]) => [k, v.label]) },
+        { k: 'target', label: 'Alvo', type: 'number', required: true, step: '0.5' },
+        { k: 'manualValue', label: 'Valor atual (só para meta personalizada)', type: 'number', step: '0.5' },
+        { k: 'notes', label: 'Observações', type: 'textarea', full: true, rows: 2 },
+      ], defaults: () => ({ metric: 'hours_week' }),
+    },
+  };
+
+  // abre o formulário de criação/edição de qualquer cadastro
+  App.edit = function (type, id, defaults = {}) {
+    const F = FORMS[type], old = id ? St.get(type, id) : null;
+    if (id && !old) return U.toast('Registro não encontrado (pode ter sido excluído).', 'bad');
+    U.form({
+      title: (old ? 'Editar ' : 'Novo(a) ') + F.title, fields: F.fields(), value: old || { ...F.defaults(), ...defaults }, check: F.check,
+      onSave: async vals => {
+        const rec = { ...(old || {}), ...vals };
+        if (F.before) F.before(rec, old);
+        const saved = await St.save(type, rec);
+        U.toast(old ? 'Alterações salvas.' : `${St.LABELS[type]} criado(a).`, 'good');
+        if (F.after) F.after(saved, old);
+      },
+      onDelete: old ? () => App.del(type, id) : null,
+    });
+  };
+  const DELETE_TEXT = {
+    projects: 'As tarefas, sessões, notas, referências e eventos ligados a ele continuam existindo, sem projeto. As revisões do projeto serão excluídas.',
+    clients: 'Projetos, tarefas e notas deste cliente continuam existindo, sem cliente.',
+    tasks: 'As sessões de tempo desta tarefa continuam registradas, sem tarefa.',
+  };
+  App.del = async function (type, id) {
+    const r = St.get(type, id); if (!r) return false;
+    const name = r.name || r.title || r.version || '';
+    if (!await U.ask({ title: `Excluir ${(St.LABELS[type] || 'registro').toLowerCase()}?`, text: `${name ? '“' + name + '” será excluído(a). ' : ''}${DELETE_TEXT[type] || ''} Esta ação não pode ser desfeita.`, ok: 'Excluir', danger: true })) return false;
+    try { await St.remove(type, id); U.toast('Excluído.', 'good'); if (type === 'projects' && location.hash.startsWith('#projeto/')) go('projetos'); return true; } catch (e) { U.fail(e); return false; }
+  };
+  App.toggleTask = async function (id) {
+    const t = St.get('tasks', id); if (!t) return;
+    const done = t.status !== 'done';
+    try { await St.save('tasks', { ...t, status: done ? 'done' : 'todo', completedAt: done ? now() : null }, { verb: done ? 'concluída' : 'reaberta' }); } catch (e) { U.fail(e); }
+  };
+  App.toggleCheck = async function (type, id, key, itemId) {
+    const r = St.get(type, id); if (!r) return;
+    const list = (r[key] || []).map(c => c.id === itemId ? { ...c, done: !c.done } : c);
+    try { await St.save(type, { ...r, [key]: list }, { quiet: true }); } catch (e) { U.fail(e); }
+  };
+
+  // ---------- tempo: expediente, sessões e pausas ----------
+  const active = {
+    workday: () => S.workdays.find(w => !w.end),
+    session: () => S.sessions.find(s => !s.end),
+    brk: () => S.breaks.find(b => !b.end),
+  };
+  App.active = active;
+  App.isPaused = s => !!(s && (s.pauses || []).some(p => !p.end));
+  App.startWorkday = async function () {
+    await St.reload();
+    if (active.workday()) return U.toast('O expediente já está aberto.');
+    try { await St.save('workdays', { start: now(), end: null }, { verb: 'iniciado' }); U.toast('Expediente iniciado.', 'good'); } catch (e) { U.fail(e); }
+  };
+  App.endWorkday = async function () {
+    await St.reload();
+    const w = active.workday(); if (!w) return;
+    const s = active.session(), b = active.brk();
+    if ((s || b) && !await U.ask({ title: 'Encerrar o expediente?', text: `Há ${[s && 'uma sessão de trabalho', b && 'uma pausa'].filter(Boolean).join(' e ')} em andamento. Elas também serão encerradas agora.`, ok: 'Encerrar tudo' })) return;
+    try {
+      const t = now();
+      if (b) await St.save('breaks', { ...b, end: t }, { verb: 'encerrada' });
+      if (s) await St.save('sessions', closeSession(s, t), { verb: 'encerrada' });
+      await St.save('workdays', { ...w, end: t }, { verb: 'encerrado' });
+      U.toast('Expediente encerrado.', 'good');
+    } catch (e) { U.fail(e); }
+  };
+  function closeSession(s, t) { return { ...s, end: t, pauses: (s.pauses || []).map(p => p.end ? p : { ...p, end: t }) }; }
+  // pergunta projeto/tarefa e inicia uma sessão (só uma ativa por vez)
+  App.startSession = async function (pre = {}) {
+    await St.reload();
+    const cur = active.session();
+    if (cur && !await U.ask({ title: 'Já existe uma sessão ativa', text: 'Só uma sessão de trabalho fica ativa por vez. Encerrar a atual e iniciar uma nova?', ok: 'Encerrar e iniciar nova' })) return;
+    U.form({
+      title: 'Iniciar cronômetro', submit: 'Iniciar', value: pre,
+      fields: [
+        { k: 'projectId', label: 'Projeto', type: 'select', options: opt.openProjects },
+        { k: 'taskId', label: 'Tarefa', type: 'select', options: opt.tasks },
+        { k: 'note', label: 'O que você vai fazer (opcional)', full: true },
+        ...(active.workday() ? [] : [{ k: 'withWorkday', type: 'checkbox', text: 'Iniciar o expediente também', full: true }]),
+      ],
+      check: v => { const t = v.taskId && St.get('tasks', v.taskId); return t && v.projectId && t.projectId && t.projectId !== v.projectId ? { taskId: 'Esta tarefa pertence a outro projeto.' } : null; },
+      onSave: async v => {
+        const t = now();
+        const c2 = active.session(); if (c2) await St.save('sessions', closeSession(c2, t), { verb: 'encerrada' });
+        if (v.withWorkday && !active.workday()) await St.save('workdays', { start: t, end: null }, { verb: 'iniciado' });
+        const task = v.taskId && St.get('tasks', v.taskId);
+        const projectId = v.projectId || (task && task.projectId) || null;
+        await St.save('sessions', { start: t, end: null, projectId, taskId: v.taskId || null, note: v.note, pauses: [] }, { verb: 'iniciada' });
+        if (task && task.status === 'todo') await St.save('tasks', { ...task, status: 'doing' }, { quiet: true });
+        U.toast('Cronômetro iniciado.', 'good');
+      },
+    });
+  };
+  App.stopSession = async function () {
+    await St.reload();
+    const s = active.session(); if (!s) return;
+    try { await St.save('sessions', closeSession(s, now()), { verb: 'encerrada' }); U.toast('Sessão encerrada: ' + U.fmtDur(M.total(M.workedIntervals({ ...s, end: now() }, S.breaks, now()))) + ' trabalhados.', 'good'); } catch (e) { U.fail(e); }
+  };
+  App.pauseSession = async function () {
+    const s = active.session(); if (!s || App.isPaused(s)) return;
+    try { await St.save('sessions', { ...s, pauses: [...(s.pauses || []), { start: now(), end: null }] }, { quiet: true }); } catch (e) { U.fail(e); }
+  };
+  App.resumeSession = async function () {
+    const s = active.session(); if (!s || !App.isPaused(s)) return;
+    try { await St.save('sessions', { ...s, pauses: s.pauses.map(p => p.end ? p : { ...p, end: now() }) }, { quiet: true }); } catch (e) { U.fail(e); }
+  };
+  App.startBreak = async function (typeId) {
+    await St.reload();
+    if (active.brk()) return U.toast('Já existe uma pausa em andamento.');
+    const type = S.settings.breakTypes.find(b => b.id === typeId) || S.settings.breakTypes[0];
+    try { await St.save('breaks', { start: now(), end: null, type: type.id, typeName: type.name, plannedMin: type.min }, { verb: 'iniciada' }); U.toast(`${type.name} iniciada (${type.min} min).`, 'good'); } catch (e) { U.fail(e); }
+  };
+  App.endBreak = async function () {
+    await St.reload();
+    const b = active.brk(); if (!b) return;
+    try { await St.save('breaks', { ...b, end: now() }, { verb: 'encerrada' }); U.toast('Pausa encerrada.', 'good'); } catch (e) { U.fail(e); }
+  };
+  App.chooseBreak = function () {
+    if (active.brk()) return App.endBreak();
+    const d = U.dialog(h`<form method="dialog" class="ask"><h2>Iniciar pausa</h2><div class="stack">${S.settings.breakTypes.map(b => h`<button class="btn block" value="${b.id}">${b.name} · ${b.min} min</button>`)}</div><div class="actions"><button value="" class="btn">Cancelar</button></div></form>`, 'small');
+    d.addEventListener('close', () => { if (d.returnValue) App.startBreak(d.returnValue); });
+  };
+
+  // registro manual / edição de horários (com confirmação, o histórico fica no registro)
+  App.editTime = function (type, id) {
+    const old = id ? St.get(type, id) : null;
+    const base = old ? old.start : at9();
+    const v = old ? { date: M.isoDate(old.start), startT: U.fmtTime(old.start), endT: old.end ? U.fmtTime(old.end) : '', endDate: old.end ? M.isoDate(old.end) : '', ...old } : { date: M.isoDate(base), type: S.settings.breakTypes[0].id };
+    const fields = [{ k: 'date', label: 'Data de início', type: 'date', required: true }, { k: 'startT', label: 'Início', type: 'time', required: true }, { k: 'endT', label: 'Fim', type: 'time', hint: old && !old.end ? 'Vazio: continua em andamento.' : '' }, { k: 'endDate', label: 'Data do fim (se outro dia)', type: 'date' }];
+    if (type === 'sessions') fields.push({ k: 'projectId', label: 'Projeto', type: 'select', options: opt.projects }, { k: 'taskId', label: 'Tarefa', type: 'select', options: () => S.tasks.map(t => [t.id, t.title]) }, { k: 'note', label: 'Descrição', full: true });
+    if (type === 'breaks') fields.push({ k: 'type', label: 'Tipo de pausa', type: 'select', required: true, options: () => S.settings.breakTypes.map(b => [b.id, b.name]) }, { k: 'note', label: 'Observação', full: true });
+    U.form({
+      title: (old ? 'Editar ' : 'Registrar ') + { sessions: 'sessão de trabalho', breaks: 'pausa', workdays: 'expediente' }[type], fields, value: v,
+      check: x => {
+        const e = {};
+        if (!x.endT && (!old || old.end)) e.endT = 'Informe o horário de fim.';
+        if (x.endT) { const s = M.at(x.date, x.startT), en = M.at(x.endDate || x.date, x.endT); if (en <= s) e.endT = 'O fim deve ser depois do início.'; if (en > now()) e.endT = 'O fim não pode estar no futuro.'; }
+        if (x.startT && M.at(x.date, x.startT) > now()) e.startT = 'O início não pode estar no futuro.';
+        return e;
+      },
+      onSave: async x => {
+        if (old && !await U.ask({ title: 'Alterar este registro de horário?', text: 'Os totais de horas serão recalculados. A alteração fica guardada no histórico do registro.', ok: 'Alterar' })) throw Object.assign(new Error('cancelado'), { cancelled: true });
+        const rec = { ...(old || { pauses: [] }), start: M.at(x.date, x.startT), end: x.endT ? M.at(x.endDate || x.date, x.endT) : null, manual: true };
+        if (type === 'sessions') Object.assign(rec, { projectId: x.projectId || (St.get('tasks', x.taskId) || {}).projectId || null, taskId: x.taskId || null, note: x.note });
+        if (type === 'breaks') { const bt = S.settings.breakTypes.find(b => b.id === x.type); Object.assign(rec, { type: x.type, typeName: bt ? bt.name : x.type, plannedMin: bt ? bt.min : null, note: x.note }); }
+        if (rec.end == null && !old) throw Object.assign(new Error(''), { fields: { endT: 'Informe o horário de fim.' } });
+        if (type === 'sessions' && rec.end == null && S.sessions.some(s => !s.end && s.id !== rec.id)) throw Object.assign(new Error(''), { fields: { endT: 'Já existe outra sessão ativa.' } });
+        await St.save(type, rec, { verb: old ? 'editado(a) manualmente' : 'registrado(a) manualmente' });
+        U.toast('Registro salvo.', 'good');
+      },
+      onDelete: old ? () => App.del(type, id) : null,
+    });
+    function at9() { return M.at(today(), S.settings.workStart); }
+  };
+
+  // ---------- rotas ----------
+  const ROUTES = [
+    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['projetos', 'Projetos', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['clientes', 'Clientes', 'users'],
+    ['calendario', 'Calendário', 'calendar', 'Tempo'], ['tempo', 'Controle de tempo', 'clock'], ['pausas', 'Pausas', 'coffee'],
+    ['referencias', 'Referências criativas', 'image', 'Criação'], ['anotacoes', 'Anotações', 'note'],
+    ['relatorios', 'Relatórios', 'chart', 'Análise'], ['metas', 'Metas', 'target'], ['insights', 'Insights e sugestões', 'bulb'],
+  ];
+  App.ROUTES = ROUTES;
+  function go(r) { location.hash = r; }
+  App.go = go;
+  function current() { const [r, id] = location.hash.slice(1).split('/'); return { r: r || 'dashboard', id }; }
+  let lastRoute = '';
+  function render() {
+    const { r, id } = current();
+    const view = Views[r] || Views.dashboard;
+    const main = document.getElementById('main');
+    const keep = lastRoute === location.hash ? window.scrollY : 0;
+    try { main.innerHTML = U.html(view.render(id)); }
+    catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
+    if (view.mount) view.mount(main, id);
+    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'projeto' ? 'projetos' : r === 'cliente' ? 'clientes' : r)));
+    const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'projeto' ? 'Projeto' : r === 'cliente' ? 'Cliente' : 'Dashboard'])[1];
+    document.title = title + ' · Prancheta';
+    renderDemoBanner(); tick();
+    if (lastRoute !== location.hash) { window.scrollTo(0, 0); document.getElementById('main').focus({ preventScroll: true }); } else window.scrollTo(0, keep);
+    lastRoute = location.hash;
+  }
+  App.render = render;
+  App.page = (title, sub, actions = '') => h`<header class="page-head"><div><h1>${title}</h1>${sub ? h`<p class="sub">${sub}</p>` : ''}</div><div class="page-actions">${actions}</div></header>`;
+
+  // ---------- ações por atributo data-act ----------
+  document.addEventListener('click', async e => {
+    const el = e.target.closest('[data-act]'); if (!el) return;
+    const [act, a, b, c] = el.dataset.act.split(':');
+    switch (act) {
+      case 'new': App.edit(a, null, el.dataset.defaults ? JSON.parse(el.dataset.defaults) : {}); break;
+      case 'edit': App.edit(a, b); break;
+      case 'del': App.del(a, b); break;
+      case 'go': go(a + (b ? '/' + b : '')); break;
+      case 'toggle-task': App.toggleTask(a); break;
+      case 'toggle-check': App.toggleCheck(a, b, c, el.dataset.item); break;
+      case 'workday': active.workday() ? App.endWorkday() : App.startWorkday(); break;
+      case 'session-start': App.startSession({ projectId: a || '', taskId: b || '' }); break;
+      case 'session-stop': App.stopSession(); break;
+      case 'session-pause': App.pauseSession(); break;
+      case 'session-resume': App.resumeSession(); break;
+      case 'break': App.chooseBreak(); break;
+      case 'break-start': App.startBreak(a); break;
+      case 'break-end': App.endBreak(); break;
+      case 'time-edit': App.editTime(a, b); break;
+      case 'clear-demo': clearDemo(); break;
+      case 'load-demo': loadDemo(); break;
+      default: { const v = Views[current().r]; if (v && v.act) v.act(act, [a, b, c], el, e); }
+    }
+  });
+  document.addEventListener('change', e => { const v = Views[current().r]; if (v && v.change) v.change(e); });
+  document.addEventListener('input', e => { const v = Views[current().r]; if (v && v.input && e.target.closest('#main')) v.input(e); });
+
+  // ---------- barra superior: relógio, cronômetro e menu "Novo" ----------
+  function tick() {
+    const s = active.session(), b = active.brk(), w = active.workday(), t = now();
+    const chip = document.getElementById('timer-chip');
+    if (b) {
+      const el = t - b.start, rest = b.plannedMin * M.MIN - el;
+      chip.innerHTML = U.html(h`<span class="dot warn"></span><span>${b.typeName} · ${U.fmtClock(el)}${rest < 0 ? ' (passou ' + U.fmtDur(-rest) + ')' : ''}</span><button class="btn small" data-act="break-end">Encerrar pausa</button>`);
+    } else if (s) {
+      const ms = M.total(M.workedIntervals(s, S.breaks, t)), p = St.get('projects', s.projectId), tk = St.get('tasks', s.taskId);
+      const paused = App.isPaused(s);
+      chip.innerHTML = U.html(h`<span class="dot ${paused ? 'warn' : 'good'}"></span><span class="mono">${U.fmtClock(ms)}</span><span class="chip-label">${tk ? tk.title : p ? p.name : 'Sem projeto'}</span><button class="icon-btn" data-act="${paused ? 'session-resume' : 'session-pause'}" aria-label="${paused ? 'Retomar' : 'Pausar sessão'}">${icon(paused ? 'play' : 'pause')}</button><button class="icon-btn" data-act="session-stop" aria-label="Encerrar sessão">${icon('stop')}</button>`);
+    } else chip.innerHTML = U.html(h`${w ? h`<span class="dot good"></span><span>Expediente desde ${U.fmtTime(w.start)}</span>` : ''}<button class="btn small" data-act="session-start">${icon('play')} Iniciar cronômetro</button>`);
+    document.querySelectorAll('[data-live]').forEach(el => { const f = LIVE[el.dataset.live]; if (f) el.textContent = f(el); });
+  }
+  // valores da página que mudam a cada segundo
+  const LIVE = {
+    session: () => { const s = active.session(); return s ? U.fmtClock(M.total(M.workedIntervals(s, S.breaks, now()))) : '00:00:00'; },
+    workday: () => { const w = active.workday(); return w ? U.fmtClock(now() - w.start) : '00:00:00'; },
+    'break-elapsed': () => { const b = active.brk(); return b ? U.fmtClock(now() - b.start) : '00:00:00'; },
+    'break-left': () => { const b = active.brk(); if (!b) return ''; const r = b.plannedMin * M.MIN - (now() - b.start); return r >= 0 ? U.fmtClock(r) + ' restantes' : 'passou ' + U.fmtDur(-r) + ' do previsto'; },
+    'since-break': () => U.fmtDur(M.sinceLastBreak(S, now())),
+    'today-worked': () => U.fmtDur(M.timeSummary(S, ...M.range('day', now()), now()).workedMs),
+  };
+  App.LIVE = LIVE;
+  setInterval(() => { tick(); const ring = document.querySelector('[data-ring]'); if (ring && Views.pausas.ring) Views.pausas.ring(ring); }, 1000);
+
+  // ---------- lembretes (só com a Prancheta aberta) ----------
+  let lastBreakReminder = Number(sessionStorage.getItem('prancheta.breakReminder')) || 0;
+  async function reminders() {
+    const t = now();
+    const notify = (title, body) => { U.toast(title + (body ? ' — ' + body : ''), 'warn', 10000); if (S.settings.notify && 'Notification' in window && Notification.permission === 'granted') try { new Notification(title, { body }); } catch { /* sem suporte */ } };
+    for (const task of S.tasks) {
+      if (task.reminder && !task.remindedAt && task.status !== 'done' && new Date(task.reminder).getTime() <= t) { notify('Lembrete: ' + task.title, task.due ? 'Prazo ' + U.fmtDate(task.due) : ''); await St.save('tasks', { ...task, remindedAt: t }, { quiet: true }).catch(() => {}); }
+    }
+    for (const ev of S.events) {
+      if (ev.reminderMin === '' || ev.reminderMin == null || ev.remindedAt) continue;
+      const when = M.at(ev.date, ev.time || '09:00') - Number(ev.reminderMin) * M.MIN;
+      if (when <= t && t - when < M.DAY) { notify('Em breve: ' + ev.title, `${U.fmtDate(ev.date)} ${ev.time || ''}`); await St.save('events', { ...ev, remindedAt: t }, { quiet: true }).catch(() => {}); }
+    }
+    const s = active.session();
+    if (s && !active.brk() && !App.isPaused(s) && S.settings.breakReminderMin > 0) {
+      const since = M.sinceLastBreak(S, t);
+      if (since >= S.settings.breakReminderMin * M.MIN && t - lastBreakReminder >= S.settings.breakReminderMin * M.MIN) {
+        lastBreakReminder = t; sessionStorage.setItem('prancheta.breakReminder', t);
+        notify('Hora de uma pausa?', `Você está há ${U.fmtDur(since)} trabalhando sem pausa. A pausa só começa se você iniciar.`);
+      }
+    }
+  }
+  setInterval(() => reminders().catch(console.error), 30000);
+
+  // ---------- busca global ----------
+  function search(q) {
+    q = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    if (q.length < 2) return [];
+    const has = (...xs) => xs.flat().filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q);
+    const out = [];
+    S.projects.forEach(p => has(p.name, p.description, p.category, p.notes) && out.push(['Projeto', p.name, 'go:projeto:' + p.id]));
+    S.tasks.forEach(t => has(t.title, t.description, t.notes, (t.checklist || []).map(c => c.text)) && out.push(['Tarefa', t.title, 'edit:tasks:' + t.id]));
+    S.clients.forEach(c => has(c.name, c.contactName, c.email, c.notes) && out.push(['Cliente', c.name, 'go:cliente:' + c.id]));
+    S.notes.forEach(n => has(n.title, n.body, n.tags) && out.push(['Anotação', n.title, 'edit:notes:' + n.id]));
+    S.refs.forEach(r => has(r.name, r.description, r.tags, r.typography) && out.push(['Referência', r.name, 'edit:refs:' + r.id]));
+    S.revisions.forEach(r => has(r.version, r.feedback, r.changes) && out.push(['Revisão', (St.get('projects', r.projectId) || {}).name + ' · ' + r.version, 'edit:revisions:' + r.id]));
+    S.events.forEach(ev => has(ev.title, ev.notes) && out.push(['Evento', ev.title + ' · ' + U.fmtDate(ev.date), 'edit:events:' + ev.id]));
+    return out.slice(0, 30);
+  }
+  function setupSearch() {
+    const inp = document.getElementById('search'), box = document.getElementById('search-results');
+    let sel = -1;
+    const show = () => {
+      const res = search(inp.value); sel = -1;
+      box.hidden = inp.value.trim().length < 2;
+      box.innerHTML = U.html(res.length ? res.map(([k, t, act], i) => h`<li><button data-act="${act}" id="sr-${i}"><span class="badge muted">${k}</span> ${t}</button></li>`) : h`<li class="muted pad">Nada encontrado para “${inp.value}”.</li>`);
+    };
+    inp.addEventListener('input', show);
+    inp.addEventListener('keydown', e => {
+      const items = box.querySelectorAll('button');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === 'ArrowDown' ? 1 : -1))); items.forEach((b, i) => b.classList.toggle('sel', i === sel)); }
+      if (e.key === 'Enter' && items.length) { e.preventDefault(); items[Math.max(0, sel)].click(); }
+      if (e.key === 'Escape') { inp.value = ''; box.hidden = true; inp.blur(); }
+    });
+    box.addEventListener('click', () => { box.hidden = true; inp.value = ''; });
+    document.addEventListener('click', e => { if (!e.target.closest('.search')) box.hidden = true; });
+  }
+
+  // ---------- atalhos ----------
+  document.addEventListener('keydown', e => {
+    if (document.querySelector('dialog[open]')) return;
+    const typing = e.target.matches('input, textarea, select');
+    if (e.key === '/' && !typing) { e.preventDefault(); document.getElementById('search').focus(); return; }
+    if (!e.altKey) return;
+    const k = e.key.toLowerCase();
+    const map = { n: () => App.edit('tasks'), p: () => App.edit('projects'), a: () => App.edit('notes'), t: () => active.session() ? App.stopSession() : App.startSession(), b: () => App.chooseBreak(), e: () => active.workday() ? App.endWorkday() : App.startWorkday() };
+    if (map[k]) { e.preventDefault(); map[k](); }
+  });
+  window.addEventListener('beforeunload', e => { if (document.querySelector('dialog[open]') && window.__dirtyForm && window.__dirtyForm()) { e.preventDefault(); e.returnValue = ''; } });
+
+  // ---------- dados de demonstração ----------
+  function renderDemoBanner() {
+    const n = St.S.projects.filter(p => p.demo).length + St.S.tasks.filter(t => t.demo).length;
+    const el = document.getElementById('demo-banner');
+    el.hidden = !n;
+    if (n) el.innerHTML = U.html(h`${icon('info')} Dados de demonstração carregados: não são registros seus. <button class="btn small" data-act="clear-demo">Remover dados de demonstração</button>`);
+  }
+  async function clearDemo() {
+    if (!await U.ask({ title: 'Remover dados de demonstração?', text: 'Somente os registros marcados como demonstração serão apagados. O que você cadastrou continua.', ok: 'Remover', danger: true })) return;
+    try { const n = await St.clearDemo(); U.toast(`${n} registros de demonstração removidos.`, 'good'); } catch (e) { U.fail(e); }
+  }
+  async function loadDemo() {
+    if (S.projects.some(p => p.demo)) return U.toast('Os dados de demonstração já estão carregados.');
+    const t = now(), d = n => M.isoDate(M.addDays(t, n)), id = () => M.uid(), base = { demo: true, created: t, updated: t, history: [] };
+    const c1 = { ...base, id: id(), name: '[Demo] Café Aurora', contactName: 'Marina', email: 'marina@exemplo.com', status: 'active' };
+    const c2 = { ...base, id: id(), name: '[Demo] Studio Ipê', status: 'prospect' };
+    const P = (name, clientId, category, status, priority, start, due, estimateH, value, extra = {}) => ({ ...base, id: id(), name, clientId, category, status, priority, start, due, estimateH, value, stages: [], links: [], statusSince: t - 6 * M.DAY, ...extra });
+    const p1 = P('[Demo] Identidade visual Aurora', c1.id, 'Identidade visual', 'doing', 'high', d(-12), d(3), 30, 4500);
+    const p2 = P('[Demo] Posts de novembro', c1.id, 'Posts para redes sociais', 'approval', 'medium', d(-5), d(8), 12, 1200);
+    const p3 = P('[Demo] Logo Studio Ipê', c2.id, 'Criação de logotipo', 'done', 'medium', d(-30), d(-10), 10, 1800, { completedAt: M.addDays(t, -11) });
+    const T = (title, projectId, status, priority, due, estimateH, extra = {}) => ({ ...base, id: id(), title, projectId, clientId: projectId === p3.id ? c2.id : c1.id, status, priority, due, estimateH, checklist: [], completedAt: status === 'done' ? M.addDays(t, -2) : null, ...extra });
+    const tasks = [
+      T('[Demo] Moodboard', p1.id, 'done', 'medium', d(-8), 3), T('[Demo] Esboços do símbolo', p1.id, 'done', 'high', d(-4), 5),
+      T('[Demo] Refinar tipografia', p1.id, 'doing', 'high', d(1), 4, { checklist: [{ id: id(), text: 'Testar 3 famílias', done: true }, { id: id(), text: 'Ajustar kerning', done: false }] }),
+      T('[Demo] Manual da marca', p1.id, 'todo', 'urgent', d(3), 8), T('[Demo] Calendário editorial', p2.id, 'done', 'medium', d(-3), 2),
+      T('[Demo] Artes da semana 1', p2.id, 'waiting', 'medium', d(2), 3), T('[Demo] Vetorizar logo final', p3.id, 'done', 'medium', d(-12), 2),
+      T('[Demo] Responder e-mails', null, 'todo', 'low', d(0), 0.5, { clientId: null }),
+    ];
+    const sess = [], dayAt = (n, hh, mm = 0) => { const x = new Date(M.addDays(M.startOfDay(t), n)); x.setHours(hh, mm); return x.getTime(); };
+    [[-3, 9, 12, tasks[0]], [-3, 13, 17, tasks[1]], [-2, 9, 11, tasks[4]], [-2, 14, 18, tasks[1]], [-1, 9, 12, tasks[2]], [-1, 13, 16, tasks[6]]].forEach(([n, a, b, tk]) => sess.push({ ...base, id: id(), start: dayAt(n, a), end: dayAt(n, b), projectId: tk.projectId, taskId: tk.id, pauses: [], manual: true }));
+    const wds = [-3, -2, -1].map(n => ({ ...base, id: id(), start: dayAt(n, 8, 50), end: dayAt(n, 18, 10), manual: true }));
+    const brs = [-3, -2, -1].map(n => ({ ...base, id: id(), start: dayAt(n, 12), end: dayAt(n, 13), type: 'lunch', typeName: 'Almoço', plannedMin: 60, manual: true }));
+    const list = [['clients', c1], ['clients', c2], ['projects', p1], ['projects', p2], ['projects', p3], ...tasks.map(x => ['tasks', x]), ...sess.map(x => ['sessions', x]), ...wds.map(x => ['workdays', x]), ...brs.map(x => ['breaks', x]),
+      ['events', { ...base, id: id(), title: '[Demo] Apresentação da marca', type: 'meeting', date: d(2), time: '15:00', endTime: '16:00', projectId: p1.id }],
+      ['revisions', { ...base, id: id(), projectId: p2.id, version: 'v1', sentAt: d(-6), status: 'waiting', feedback: '', changes: '' }],
+      ['notes', { ...base, id: id(), title: '[Demo] Briefing Aurora', kind: 'Briefing', body: 'Cafeteria de bairro, público jovem, tons quentes.', tags: ['aurora'], projectId: p1.id, clientId: c1.id, pinned: true }],
+      ['refs', { ...base, id: id(), name: '[Demo] Paleta outono', category: 'Cores', tags: ['quente'], palette: ['#7a3e1d', '#d98e48', '#f3e3c3'], typography: 'Fraunces + Inter', projectId: p1.id }],
+      ['goals', { ...base, id: id(), title: '[Demo] 30 h por semana', metric: 'hours_week', target: 30 }]];
+    try { await St.bulkPut(list); U.toast('Dados de demonstração carregados. Remova quando quiser pelo aviso no topo.', 'good', 6000); } catch (e) { U.fail(e); }
+  }
+
+  // ---------- início ----------
+  App.applyAccent = () => document.documentElement.style.setProperty('--accent', S.settings.accent || '#4f8bff');
+  async function boot() {
+    const nav = document.getElementById('nav');
+    nav.innerHTML = U.html(ROUTES.map(([r, t, ic, group]) => h`${group ? h`<p class="nav-group">${group}</p>` : ''}<a href="#${r}" data-r="${r}">${icon(ic)}<span>${t}</span></a>`));
+    const d = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    document.getElementById('today').textContent = d[0].toUpperCase() + d.slice(1);
+    document.getElementById('new-menu').innerHTML = U.html([['projects', 'Projeto', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Cliente', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
+    const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
+    nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
+    document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) { nm.hidden = true; nb.setAttribute('aria-expanded', 'false'); } });
+    setupSearch();
+    try { await St.init(); }
+    catch (e) {
+      document.getElementById('main').innerHTML = U.html(h`<div class="empty"><p class="empty-title">Não foi possível abrir o armazenamento local</p><p>${e.message}</p><p>A Prancheta guarda os dados no IndexedDB do navegador. Em janelas anônimas ou com dados de sites bloqueados, ele pode não estar disponível.</p></div>`);
+      return;
+    }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    App.applyAccent();
+    St.onChange(() => { App.applyAccent(); render(); });
+    window.addEventListener('hashchange', render);
+    render();
+    reminders().catch(console.error);
+    document.body.classList.remove('loading');
+  }
+  // as telas (views-*.js) carregam depois deste arquivo; o início espera por elas
+  document.addEventListener('DOMContentLoaded', boot);
+})();
