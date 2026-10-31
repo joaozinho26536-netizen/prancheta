@@ -146,6 +146,7 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const allCount = await page.locator('.task-row').count();
   await page.selectOption('[data-f="status"]', 'done');
   const doneCount = await page.locator('.task-row').count();
+  await page.locator('body').press('/');
   await page.fill('#search', 'esboço');
   const sr = await text('#search-results');
   await page.keyboard.press('Escape');

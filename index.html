@@ -55,28 +55,28 @@
 </svg>
 
 <a class="skip" href="#main">Pular para o conteúdo</a>
+<header class="topbar">
+  <a class="brand" href="#dashboard"><span class="logo" aria-hidden="true">P</span>Prancheta</a>
+  <nav class="pills" id="nav" aria-label="Seções principais"><span class="pill-ind" aria-hidden="true"></span></nav>
+  <div class="top-right">
+    <div class="timer-chip" id="timer-chip" aria-live="off"></div>
+    <button class="icon-btn round music-btn" id="music-btn" aria-expanded="false" aria-controls="music" aria-label="Música" title="Música"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg></button>
+    <div class="new-wrap">
+      <button class="icon-btn round accent" id="new-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Novo registro" title="Novo"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <div class="menu" id="new-menu" role="menu" hidden></div>
+    </div>
+  </div>
+</header>
+<div class="search-pop" id="search-pop" hidden>
+  <div class="search" role="search">
+    <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+    <input id="search" type="search" placeholder="Buscar demandas, tarefas, solicitantes, notas…" aria-label="Busca global" autocomplete="off">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+</div>
 <div class="layout">
-  <aside class="sidebar">
-    <a class="brand" href="#dashboard"><span class="logo" aria-hidden="true">P</span>Prancheta</a>
-    <nav class="nav" id="nav" aria-label="Seções"></nav>
-    <a class="nav-settings" href="#configuracoes" data-r="configuracoes"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg><span>Configurações</span></a>
-  </aside>
+  <nav class="rail" id="rail" aria-label="Mais seções"></nav>
   <div class="content">
-    <header class="topbar">
-      <div class="search" role="search">
-        <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
-        <input id="search" type="search" placeholder="Buscar demandas, tarefas, solicitantes, notas…  ( / )" aria-label="Busca global" autocomplete="off">
-        <ul id="search-results" class="search-results" hidden></ul>
-      </div>
-      <span class="today" id="today"></span>
-      <div class="timer-chip" id="timer-chip" aria-live="off"></div>
-      <button class="icon-btn music-btn" id="music-btn" aria-expanded="false" aria-controls="music" aria-label="Música" title="Música"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg></button>
-      <div class="new-wrap">
-        <button class="btn primary" id="new-btn" aria-haspopup="menu" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Novo</button>
-        <div class="menu" id="new-menu" role="menu" hidden></div>
-      </div>
-      <a class="icon-btn" href="#configuracoes" aria-label="Configurações" title="Configurações"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></a>
-    </header>
     <div class="demo-banner" id="demo-banner" hidden></div>
     <main id="main" tabindex="-1"><p class="muted">Carregando…</p></main>
   </div>

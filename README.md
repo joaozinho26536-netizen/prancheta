@@ -88,7 +88,8 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - **Metas:** horas por semana ou mês, demandas e tarefas concluídas, pausas, tarefas dentro do estimado ou valor manual; progresso atual e histórico dos últimos 6 períodos.
 - **Insights:** 12 regras transparentes, cada uma mostrando a regra usada; quando faltam dados, a análise diz o que falta em vez de inventar.
 - **Configurações:** nome, jornada e dias de trabalho, tipos de pausa e lembretes, notificações do sistema, categorias, tipos de nota, status de demanda com comportamento, início da semana, formato de data, cor de destaque, blocos do dashboard, limites dos alertas, backup, demonstração e apagar tudo.
-- **Geral:** busca global (`/`), menu Novo, cronômetro sempre visível na barra superior, atalhos de teclado (`Alt+N` tarefa, `Alt+P` demanda, `Alt+A` anotação, `Alt+T` cronômetro, `Alt+B` pausa, `Alt+E` expediente), aviso ao fechar com formulário não salvo, confirmação antes de excluir e dados de demonstração marcados com "[Demo]" e removíveis com um clique.
+- **Navegação:** menu em pílula no topo com as seções principais (Início, Demandas, Tarefas, Calendário, Tempo, Relatórios) e um destaque que desliza até a página aberta; trilho de ícones à esquerda com Busca, Revisões, Solicitantes, Pausas, Referências, Anotações, Metas, Insights e Configurações.
+- **Geral:** busca global (ícone do trilho ou `/`), menu Novo, cronômetro sempre visível na barra superior, atalhos de teclado (`Alt+N` tarefa, `Alt+P` demanda, `Alt+A` anotação, `Alt+T` cronômetro, `Alt+B` pausa, `Alt+E` expediente), aviso ao fechar com formulário não salvo, confirmação antes de excluir e dados de demonstração marcados com "[Demo]" e removíveis com um clique.
 
 ## Limitações conhecidas
 
@@ -98,7 +99,7 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - Tarefas recorrentes e modelos de demanda ainda não existem como recurso. O Insight de "tarefas recorrentes" aponta as repetições para você padronizar.
 - O navegador não acessa arquivos do computador por conta própria. Imagens de referência são copiadas reduzidas (até 900 px) para dentro do banco, e o "caminho do arquivo" é só um texto de anotação.
 - O calendário da semana lista os itens por horário, sem uma grade de horas desenhada.
-- Feito para uso no computador. Funciona em telas menores (a barra lateral vira faixa de ícones), mas não foi refinado para celular.
+- Feito para uso no computador. Funciona em telas menores (o menu em pílula rola na horizontal e o trilho de ícones vai para o rodapé), mas não foi refinado para celular.
 - Volumes muito grandes (dezenas de milhares de sessões) deixariam os relatórios mais lentos, porque tudo é calculado em memória.
 
 ## Testes

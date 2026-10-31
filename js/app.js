@@ -295,11 +295,13 @@
   };
 
   // ---------- rotas ----------
+  // [rota, título, ícone, onde aparece: menu em pílula no topo ou trilho de ícones, rótulo curto da pílula]
   const ROUTES = [
-    ['dashboard', 'Dashboard', 'home', 'Trabalho'], ['demandas', 'Demandas', 'folder'], ['tarefas', 'Tarefas', 'check'], ['revisoes', 'Revisões', 'rotate'], ['solicitantes', 'Solicitantes', 'users'],
-    ['calendario', 'Calendário', 'calendar', 'Tempo'], ['tempo', 'Controle de tempo', 'clock'], ['pausas', 'Pausas', 'coffee'],
-    ['referencias', 'Referências criativas', 'image', 'Criação'], ['anotacoes', 'Anotações', 'note'],
-    ['relatorios', 'Relatórios', 'chart', 'Análise'], ['metas', 'Metas', 'target'], ['insights', 'Insights e sugestões', 'bulb'],
+    ['dashboard', 'Dashboard', 'home', 'top', 'Início'], ['demandas', 'Demandas', 'folder', 'top'], ['tarefas', 'Tarefas', 'check', 'top'],
+    ['calendario', 'Calendário', 'calendar', 'top'], ['tempo', 'Controle de tempo', 'clock', 'top', 'Tempo'], ['relatorios', 'Relatórios', 'chart', 'top'],
+    ['revisoes', 'Revisões', 'rotate', 'rail'], ['solicitantes', 'Solicitantes', 'users', 'rail'], ['pausas', 'Pausas', 'coffee', 'rail'],
+    ['referencias', 'Referências criativas', 'image', 'rail'], ['anotacoes', 'Anotações', 'note', 'rail'],
+    ['metas', 'Metas', 'target', 'rail'], ['insights', 'Insights e sugestões', 'bulb', 'rail'],
   ];
   App.ROUTES = ROUTES;
   function go(r) { location.hash = r; }
@@ -314,7 +316,9 @@
     try { main.innerHTML = U.html(view.render(id)); }
     catch (e) { console.error(e); main.innerHTML = U.html(h`<div class="empty"><p class="empty-title">Algo deu errado ao abrir esta página.</p><p>${e.message}</p></div>`); }
     if (view.mount) view.mount(main, id);
-    document.querySelectorAll('.nav a, .nav-settings').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === (r === 'demanda' ? 'demandas' : r === 'solicitante' ? 'solicitantes' : r)));
+    const active = r === 'demanda' ? 'demandas' : r === 'solicitante' ? 'solicitantes' : Views[r] ? r : 'dashboard';
+    document.querySelectorAll('[data-r]').forEach(a => a.toggleAttribute('aria-current', a.dataset.r === active));
+    movePill();
     const title = (ROUTES.find(x => x[0] === r) || [, r === 'configuracoes' ? 'Configurações' : r === 'demanda' ? 'Demanda' : r === 'solicitante' ? 'Solicitante' : 'Dashboard'])[1];
     document.title = title + ' · Prancheta';
     renderDemoBanner(); tick();
@@ -322,6 +326,15 @@
     lastRoute = location.hash;
   }
   App.render = render;
+  // destaque que desliza até a pílula ativa; a borda que vai na frente anda mais rápido que a de trás
+  function movePill() {
+    const nav = document.getElementById('nav'), ind = nav.querySelector('.pill-ind'), a = nav.querySelector('a[aria-current]');
+    if (!a) { ind.style.opacity = 0; return; }
+    const left = a.offsetLeft, right = nav.scrollWidth - left - a.offsetWidth;
+    ind.dataset.dir = left < (parseFloat(ind.style.left) || 0) ? 'left' : 'right';
+    Object.assign(ind.style, { left: left + 'px', right: right + 'px', opacity: 1 });
+  }
+  window.addEventListener('resize', movePill);
   App.page = (title, sub, actions = '') => h`<header class="page-head"><div><h1>${title}</h1>${sub ? h`<p class="sub">${sub}</p>` : ''}</div><div class="page-actions">${actions}</div></header>`;
 
   // ---------- ações por atributo data-act ----------
@@ -430,17 +443,23 @@
       const items = box.querySelectorAll('button');
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === 'ArrowDown' ? 1 : -1))); items.forEach((b, i) => b.classList.toggle('sel', i === sel)); }
       if (e.key === 'Enter' && items.length) { e.preventDefault(); items[Math.max(0, sel)].click(); }
-      if (e.key === 'Escape') { inp.value = ''; box.hidden = true; inp.blur(); }
+      if (e.key === 'Escape') closeSearch();
     });
-    box.addEventListener('click', () => { box.hidden = true; inp.value = ''; });
-    document.addEventListener('click', e => { if (!e.target.closest('.search')) box.hidden = true; });
+    box.addEventListener('click', closeSearch);
+    document.addEventListener('click', e => { if (!e.target.closest('.search, [data-open-search]')) closeSearch(); });
+  }
+  // a busca abre por cima do conteúdo, pelo ícone do trilho ou pela tecla /
+  function openSearch() { document.getElementById('search-pop').hidden = false; document.getElementById('search').focus(); }
+  function closeSearch() {
+    const inp = document.getElementById('search');
+    inp.value = ''; document.getElementById('search-results').hidden = true; document.getElementById('search-pop').hidden = true;
   }
 
   // ---------- atalhos ----------
   document.addEventListener('keydown', e => {
     if (document.querySelector('dialog[open]')) return;
     const typing = e.target.matches('input, textarea, select');
-    if (e.key === '/' && !typing) { e.preventDefault(); document.getElementById('search').focus(); return; }
+    if (e.key === '/' && !typing) { e.preventDefault(); openSearch(); return; }
     if (!e.altKey) return;
     const k = e.key.toLowerCase();
     const map = { n: () => App.edit('tasks'), p: () => App.edit('projects'), a: () => App.edit('notes'), t: () => active.session() ? App.stopSession() : App.startSession(), b: () => App.chooseBreak(), e: () => active.workday() ? App.endWorkday() : App.startWorkday() };
@@ -533,9 +552,11 @@
   App.applyAccent = () => document.documentElement.style.setProperty('--accent', S.settings.accent || '#4f8bff');
   async function boot() {
     const nav = document.getElementById('nav');
-    nav.innerHTML = U.html(ROUTES.map(([r, t, ic, group]) => h`${group ? h`<p class="nav-group">${group}</p>` : ''}<a href="#${r}" data-r="${r}">${icon(ic)}<span>${t}</span></a>`));
-    const d = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    document.getElementById('today').textContent = d[0].toUpperCase() + d.slice(1);
+    nav.insertAdjacentHTML('beforeend', U.html(ROUTES.filter(x => x[3] === 'top').map(([r, t, , , short]) => h`<a href="#${r}" data-r="${r}">${short || t}</a>`)));
+    const railLink = ([r, t, ic]) => h`<a class="rail-btn" href="#${r}" data-r="${r}" aria-label="${t}" data-tip="${t}">${icon(ic)}</a>`;
+    document.getElementById('rail').innerHTML = U.html(h`<button class="rail-btn" data-open-search aria-label="Buscar (/)" data-tip="Buscar">${icon('search')}</button>
+      ${ROUTES.filter(x => x[3] === 'rail').map(railLink)}<span class="rail-sep" aria-hidden="true"></span>${railLink(['configuracoes', 'Configurações', 'gear'])}`);
+    document.querySelector('[data-open-search]').addEventListener('click', openSearch);
     document.getElementById('new-menu').innerHTML = U.html([['projects', 'Demanda', 'folder'], ['tasks', 'Tarefa', 'check'], ['clients', 'Solicitante', 'users'], ['events', 'Evento', 'calendar'], ['revisions', 'Revisão', 'rotate'], ['refs', 'Referência', 'image'], ['notes', 'Anotação', 'note'], ['goals', 'Meta', 'target']].map(([t, l, ic]) => h`<button data-act="new:${t}" role="menuitem">${icon(ic)} ${l}</button>`));
     const nb = document.getElementById('new-btn'), nm = document.getElementById('new-menu');
     nb.addEventListener('click', () => { nm.hidden = !nm.hidden; nb.setAttribute('aria-expanded', !nm.hidden); });
