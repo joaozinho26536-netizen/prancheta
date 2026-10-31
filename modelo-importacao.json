@@ -1,0 +1,227 @@
+{
+  "app": "prancheta",
+  "version": 1,
+  "exportedAt": "2026-11-02T12:00:00.000Z",
+  "_leia-me": [
+    "Modelo de importação da Prancheta. Edite os textos, apague o que não precisar e importe em Configurações → Importar backup, no modo Mesclar.",
+    "Cada registro precisa de um \"id\" único: troque o número no fim (exemplo-tarefa-5, exemplo-tarefa-6...).",
+    "Ligações: \"clientId\" aponta para o id de um solicitante; \"projectId\" para o id de uma demanda.",
+    "Datas no formato AAAA-MM-DD, horários HH:MM. Prioridade: low, medium, high ou urgent.",
+    "Status da demanda: planning, waiting_start, doing, approval, review, done ou cancelled. Status da tarefa: todo, doing, waiting ou done.",
+    "\"demo\": true marca o registro como exemplo; ele sai com o botão Remover dados de demonstração. Apague essa linha nos registros que forem seus de verdade."
+  ],
+  "data": {
+    "clients": [
+      {
+        "id": "exemplo-solicitante-1",
+        "name": "[Exemplo] Marketing",
+        "contactName": "Nome da pessoa",
+        "email": "",
+        "phone": "",
+        "description": "",
+        "notes": "",
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      },
+      {
+        "id": "exemplo-solicitante-2",
+        "name": "[Exemplo] RH",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "description": "",
+        "notes": "",
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      }
+    ],
+    "projects": [
+      {
+        "id": "exemplo-demanda-1",
+        "name": "[Exemplo] Campanha de Natal",
+        "clientId": "exemplo-solicitante-1",
+        "category": "Posts para redes sociais",
+        "status": "doing",
+        "priority": "high",
+        "start": "2026-11-02",
+        "due": "2026-11-20",
+        "estimateH": 12,
+        "description": "",
+        "goal": "",
+        "stages": [],
+        "links": [],
+        "notes": "",
+        "statusSince": 1793610000000,
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      },
+      {
+        "id": "exemplo-demanda-2",
+        "name": "[Exemplo] Crachás dos novos colaboradores",
+        "clientId": "exemplo-solicitante-2",
+        "category": "Materiais impressos",
+        "status": "planning",
+        "priority": "medium",
+        "start": "2026-11-02",
+        "due": "2026-11-13",
+        "estimateH": 4,
+        "description": "",
+        "goal": "",
+        "stages": [],
+        "links": [],
+        "notes": "",
+        "statusSince": 1793610000000,
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      }
+    ],
+    "tasks": [
+      {
+        "id": "exemplo-tarefa-1",
+        "title": "[Exemplo] Moodboard da campanha",
+        "projectId": "exemplo-demanda-1",
+        "clientId": "exemplo-solicitante-1",
+        "status": "todo",
+        "priority": "medium",
+        "date": "",
+        "time": "",
+        "due": "2026-11-05",
+        "estimateH": 2,
+        "reminder": "",
+        "description": "",
+        "checklist": [],
+        "notes": "",
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      },
+      {
+        "id": "exemplo-tarefa-2",
+        "title": "[Exemplo] Artes do feed (3 posts)",
+        "projectId": "exemplo-demanda-1",
+        "clientId": "exemplo-solicitante-1",
+        "status": "todo",
+        "priority": "high",
+        "date": "",
+        "time": "",
+        "due": "2026-11-12",
+        "estimateH": 6,
+        "reminder": "",
+        "description": "",
+        "checklist": [
+          {
+            "id": "exemplo-sub-1",
+            "text": "Post 1",
+            "done": false
+          },
+          {
+            "id": "exemplo-sub-2",
+            "text": "Post 2",
+            "done": false
+          },
+          {
+            "id": "exemplo-sub-3",
+            "text": "Post 3",
+            "done": false
+          }
+        ],
+        "notes": "",
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      },
+      {
+        "id": "exemplo-tarefa-3",
+        "title": "[Exemplo] Diagramar crachás",
+        "projectId": "exemplo-demanda-2",
+        "clientId": "exemplo-solicitante-2",
+        "status": "todo",
+        "priority": "medium",
+        "date": "",
+        "time": "",
+        "due": "2026-11-10",
+        "estimateH": 3,
+        "reminder": "",
+        "description": "",
+        "checklist": [],
+        "notes": "",
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      },
+      {
+        "id": "exemplo-tarefa-4",
+        "title": "[Exemplo] Responder e-mails da manhã",
+        "projectId": null,
+        "clientId": null,
+        "status": "todo",
+        "priority": "low",
+        "date": "2026-11-03",
+        "time": "09:00",
+        "due": "",
+        "estimateH": 0.5,
+        "reminder": "",
+        "description": "",
+        "checklist": [],
+        "notes": "",
+        "completedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      }
+    ],
+    "events": [
+      {
+        "id": "exemplo-evento-1",
+        "title": "[Exemplo] Alinhamento com Marketing",
+        "type": "meeting",
+        "date": "2026-11-04",
+        "time": "10:00",
+        "endTime": "10:30",
+        "projectId": "exemplo-demanda-1",
+        "reminderMin": 15,
+        "notes": "",
+        "remindedAt": null,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      }
+    ],
+    "notes": [
+      {
+        "id": "exemplo-anotacao-1",
+        "title": "[Exemplo] Briefing da campanha de Natal",
+        "kind": "Briefing",
+        "body": "Peças para feed e stories. Tom acolhedor, cores da marca.",
+        "tags": [
+          "natal"
+        ],
+        "projectId": "exemplo-demanda-1",
+        "clientId": "exemplo-solicitante-1",
+        "pinned": false,
+        "created": 1793610000000,
+        "updated": 1793610000000,
+        "history": [],
+        "demo": true
+      }
+    ]
+  }
+}

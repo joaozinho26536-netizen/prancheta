@@ -90,6 +90,10 @@ Cada cadastro tem um `id` único (UUID), `created` e `updated`, e os registros e
 - **Substituir tudo:** apaga os dados atuais e grava os do arquivo. Antes, um backup dos dados atuais é baixado automaticamente (`antes-da-importacao_…json`).
 - A importação acontece numa única transação: ou entra tudo, ou nada.
 
+### Cadastrar em lote (modelo JSON)
+
+O arquivo `modelo-importacao.json` tem o formato do backup, com exemplos de solicitante, demanda, tarefa (com subtarefas), evento e anotação, e instruções no campo `_leia-me`. Edite os textos, copie blocos para criar mais itens (cada um com `id` único), e importe em **Configurações → Importar backup**, no modo **Mesclar**. Os exemplos vêm marcados com `"demo": true` e saem com o botão **Remover dados de demonstração**; apague essa linha nos registros que forem seus.
+
 ## Funcionalidades
 
 - **Dashboard:** demandas em andamento, concluídas e atrasadas; tarefas pendentes e concluídas hoje; horas trabalhadas hoje e na semana; pausas de hoje; próximos prazos e compromissos; demandas prioritárias; metas da semana; gráficos de horas por demanda, andamento das tarefas e horas por dia; atividades recentes; atalhos rápidos. Os blocos podem ser ligados e desligados. Quando não há dados, aparece um começo guiado.
