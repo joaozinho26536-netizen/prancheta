@@ -357,10 +357,21 @@
     return { records: [...map.values()], added, updated };
   }
 
+  // ---------- música (player oficial do Spotify) ----------
+  // aceita link do open.spotify.com (com ou sem /intl-xx/) ou URI spotify:tipo:id
+  const SPOTIFY_TYPES = ['playlist', 'album', 'track', 'artist', 'show', 'episode'];
+  function spotifyEmbed(input) {
+    const s = String(input || '').trim();
+    let m = s.match(/^spotify:([a-z]+):([A-Za-z0-9]{10,40})$/);
+    if (!m) { try { const u = new URL(s); if (u.hostname === 'open.spotify.com') m = u.pathname.match(/^\/(?:intl-[a-z-]+\/)?(?:embed\/)?([a-z]+)\/([A-Za-z0-9]{10,40})\/?$/); } catch { /* não é link */ } }
+    if (!m || !SPOTIFY_TYPES.includes(m[1])) return null;
+    return { type: m[1], id: m[2], url: `https://open.spotify.com/${m[1]}/${m[2]}`, embed: `https://open.spotify.com/embed/${m[1]}/${m[2]}?utm_source=prancheta&theme=0` };
+  }
+
   const DEFAULT_SETTINGS = {
     name: '', workStart: '09:00', workEnd: '18:00', lunchMin: 60, workDays: [1, 2, 3, 4, 5], weekStart: 1,
     dateFormat: 'dd/mm/aaaa', breakReminderMin: 50, notify: false, maxTasksPerDay: 5, staleDays: 5, accent: '#4f8bff',
-    calendarView: 'week', dashboard: { charts: true, activity: true, goals: true, deadlines: true },
+    calendarView: 'week', music: { current: '', saved: [] }, dashboard: { charts: true, activity: true, goals: true, deadlines: true },
     breakTypes: [{ id: 'short', name: 'Pausa curta', min: 10 }, { id: 'long', name: 'Pausa longa', min: 20 }, { id: 'lunch', name: 'Almoço', min: 60 }],
     categories: ['Criação de logotipo', 'Identidade visual', 'Branding', 'Posts para redes sociais', 'Banners e anúncios', 'Flyers e panfletos', 'Cartazes', 'Apresentações', 'Materiais impressos', 'Embalagens', 'Edição e tratamento de imagens', 'Peças publicitárias', 'Outros'],
     projectStatuses: [
@@ -376,7 +387,7 @@
     clip, subtract, total, byDay, sessionIntervals, workedIntervals, timeSummary, spentMs, sinceLastBreak,
     indexBy, statusKind, isClosed, projectOverdue, taskOverdue, projectProgress, PRIORITY_RANK,
     GOAL_METRICS, goalProgress, report, insights, workHoursPerDay, weeklyCapacityH, round1, f1,
-    validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
+    spotifyEmbed, validate, isUrl, STORES, validateBackup, mergeRecords, DEFAULT_SETTINGS,
   };
   root.Model = Model;
   if (typeof module !== 'undefined') module.exports = Model;

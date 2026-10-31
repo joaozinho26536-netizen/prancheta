@@ -228,6 +228,24 @@ function check(name, ok, detail = '') { results.push([ok ? 'OK ' : 'FALHOU', nam
   const afterDemo = await page.evaluate(() => ({ p: Store.S.projects.length, demo: Store.S.projects.filter(p => p.demo).length }));
   check('Dados de demonstração identificados e removíveis', demoBanner && afterDemo.p === 1 && afterDemo.demo === 0, JSON.stringify(afterDemo));
 
+  // música: link inválido é recusado; o player fica fora das páginas e não reinicia ao navegar
+  await page.route('https://open.spotify.com/**', r => r.fulfill({ contentType: 'text/html', body: '<p>player</p>' })); // sem rede no teste
+  await page.click('#music-btn');
+  await page.fill('#music-link', 'https://exemplo.com/playlist/123');
+  await page.click('#music [value=play]');
+  const musicErr = await text('#music .err');
+  await page.fill('#music-link', 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x');
+  await page.fill('#music [name=name]', 'Foco');
+  await page.click('#music [value=save]');
+  await sleep(150);
+  await page.evaluate(() => { document.querySelector('#music iframe').dataset.marca = '1'; });
+  await go('tarefas'); await go('calendario');
+  const sameIframe = await page.evaluate(() => document.querySelector('#music iframe').dataset.marca === '1');
+  const src = await page.getAttribute('#music iframe', 'src');
+  await page.reload(); await page.waitForSelector('#nav a');
+  const fav = await page.locator('#music .music-saved').innerText();
+  check('Música do Spotify (validação, player contínuo, favoritos salvos)', /Não reconheci/.test(musicErr) && sameIframe && /embed\/playlist\/37i9dQZF1DXcBWIGoYBM5M/.test(src) && /Foco/.test(fav), `${musicErr} / ${sameIframe} / ${src} / ${fav}`);
+
   // navegação final com dados, sem erros
   for (const r of routes) await go(r);
   await go('cliente/' + (await page.evaluate(() => Store.S.clients[0].id)));

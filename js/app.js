@@ -492,6 +492,46 @@
     try { await St.bulkPut(list); U.toast('Dados de demonstração carregados. Remova quando quiser pelo aviso no topo.', 'good', 6000); } catch (e) { U.fail(e); }
   }
 
+  // ---------- música: player oficial do Spotify, fora do <main> para seguir tocando entre as páginas ----------
+  function renderMusic() {
+    const box = document.getElementById('music'), mu = S.settings.music || { current: '', saved: [] };
+    const cur = M.spotifyEmbed(mu.current);
+    const slot = box.querySelector('.music-player');
+    // só recria o iframe quando o link muda; recriar interromperia a música
+    if (slot.dataset.src !== (cur ? cur.embed : '')) {
+      slot.dataset.src = cur ? cur.embed : '';
+      slot.innerHTML = cur ? U.html(h`<iframe title="Player do Spotify" src="${cur.embed}" height="${['track', 'episode'].includes(cur.type) ? 152 : 352}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`)
+        : U.html(h`<p class="muted small">Cole o link de uma playlist, álbum, música, artista ou podcast do Spotify (no app: Compartilhar → Copiar link).</p>`);
+    }
+    box.querySelector('.music-saved').innerHTML = U.html(mu.saved.length ? mu.saved.map((f, i) => h`<li><button class="row-btn" data-music-play="${i}"${f.url === mu.current ? U.raw(' aria-current="true"') : ''}>${icon('play', 'sm')}<span class="grow ellipsis">${f.name}</span></button><button class="icon-btn" data-music-del="${i}" aria-label="Remover ${f.name} dos favoritos">${icon('x')}</button></li>`) : '');
+    document.getElementById('music-btn').classList.toggle('playing', !!cur);
+  }
+  async function setMusic(patch) { try { await St.saveSettings({ music: { ...(S.settings.music || { current: '', saved: [] }), ...patch } }); renderMusic(); } catch (e) { U.fail(e); } }
+  function setupMusic() {
+    const box = document.getElementById('music'), btn = document.getElementById('music-btn');
+    const toggle = open => { box.hidden = !open; btn.setAttribute('aria-expanded', open); if (open) box.querySelector('#music-link').focus(); };
+    btn.addEventListener('click', () => toggle(box.hidden));
+    box.querySelector('[data-music-close]').addEventListener('click', () => toggle(false));
+    box.querySelector('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.target, link = f.elements.link.value.trim(), name = f.elements.name.value.trim();
+      const err = box.querySelector('.err'); err.textContent = '';
+      const sp = M.spotifyEmbed(link);
+      if (!sp) { err.textContent = 'Não reconheci o link. Use um link do Spotify, como https://open.spotify.com/playlist/…'; f.elements.link.focus(); return; }
+      const saved = (S.settings.music || {}).saved || [];
+      const save = e.submitter && e.submitter.value === 'save';
+      await setMusic({ current: sp.url, saved: save && !saved.some(x => x.url === sp.url) ? [...saved, { name: name || ({ playlist: 'Playlist', album: 'Álbum', track: 'Música', artist: 'Artista', show: 'Podcast', episode: 'Episódio' }[sp.type] + ' ' + (saved.length + 1)), url: sp.url }] : saved });
+      f.reset();
+    });
+    box.addEventListener('click', async e => {
+      const p = e.target.closest('[data-music-play]'), d = e.target.closest('[data-music-del]'), mu = S.settings.music;
+      if (p) setMusic({ current: mu.saved[+p.dataset.musicPlay].url });
+      if (d) setMusic({ saved: mu.saved.filter((_, i) => i !== +d.dataset.musicDel) });
+      if (e.target.closest('[data-music-stop]')) setMusic({ current: '' });
+    });
+    renderMusic();
+  }
+
   // ---------- início ----------
   App.applyAccent = () => document.documentElement.style.setProperty('--accent', S.settings.accent || '#4f8bff');
   async function boot() {
@@ -511,7 +551,8 @@
     }
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     App.applyAccent();
-    St.onChange(() => { App.applyAccent(); render(); });
+    setupMusic();
+    St.onChange(() => { App.applyAccent(); render(); renderMusic(); });
     window.addEventListener('hashchange', render);
     render();
     reminders().catch(console.error);

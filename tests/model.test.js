@@ -121,3 +121,12 @@ test('relatório: no prazo × fora do prazo e projetos acima do previsto', () =>
   assert.strictEqual(r.lateDone, 1);
   assert.strictEqual(r.overBudget[0].p.id, 'a');
 });
+
+test('links do Spotify viram player embutido', () => {
+  assert.strictEqual(M.spotifyEmbed('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc').embed, 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=prancheta&theme=0');
+  assert.strictEqual(M.spotifyEmbed('https://open.spotify.com/intl-pt/album/4aawyAB9vmqN3uQ7FjRGTy').type, 'album');
+  assert.strictEqual(M.spotifyEmbed('spotify:track:11dFghVXANMlKmJXsNCbNl').url, 'https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl');
+  assert.strictEqual(M.spotifyEmbed('https://evil.com/playlist/37i9dQZF1DXcBWIGoYBM5M'), null);
+  assert.strictEqual(M.spotifyEmbed('https://open.spotify.com/user/abcdefghijkl'), null);
+  assert.strictEqual(M.spotifyEmbed('qualquer coisa'), null);
+});

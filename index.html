@@ -49,6 +49,7 @@
     <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v7h-3M7 14h10v7H7z"/></symbol>
     <symbol id="i-type" viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
   </defs>
 </svg>
@@ -69,6 +70,7 @@
       </div>
       <span class="today" id="today"></span>
       <div class="timer-chip" id="timer-chip" aria-live="off"></div>
+      <button class="icon-btn music-btn" id="music-btn" aria-expanded="false" aria-controls="music" aria-label="Música" title="Música"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg></button>
       <div class="new-wrap">
         <button class="btn primary" id="new-btn" aria-haspopup="menu" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Novo</button>
         <div class="menu" id="new-menu" role="menu" hidden></div>
@@ -79,6 +81,18 @@
     <main id="main" tabindex="-1"><p class="muted">Carregando…</p></main>
   </div>
 </div>
+<aside class="music" id="music" aria-label="Música" hidden>
+  <header><h2>Música</h2><button class="btn small ghost" data-music-stop>Parar e fechar o player</button><button class="icon-btn" data-music-close aria-label="Esconder (a música continua)"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+  <div class="music-player"></div>
+  <form class="music-form" novalidate>
+    <input name="link" id="music-link" placeholder="Link do Spotify" aria-label="Link do Spotify" autocomplete="off">
+    <input name="name" placeholder="Nome para os favoritos (opcional)" aria-label="Nome para os favoritos">
+    <small class="err" role="alert"></small>
+    <div class="row"><button class="btn primary small" value="play">Tocar</button><button class="btn small" value="save">Tocar e salvar nos favoritos</button></div>
+  </form>
+  <ul class="music-saved rows"></ul>
+  <p class="small muted">Com o Spotify conectado neste navegador, as músicas tocam inteiras; sem login, só trechos de 30 s.</p>
+</aside>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:24px">A Prancheta precisa de JavaScript ativado.</p></noscript>
 

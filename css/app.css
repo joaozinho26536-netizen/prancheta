@@ -23,8 +23,8 @@
     linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sun) 60%, #3a2a22 63%, var(--bg) 100%); }
 .scene::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 100%, rgba(0, 0, 0, .55), transparent 60%), rgba(10, 8, 10, .25); }
 /* vidro: tudo que é superfície desfoca a cena atrás */
-.sidebar, .topbar, .panel, .card, .month, .wcol, .insight, .kcol, .menu, .search-results, dialog, .toast, .demo-banner {
-  -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); }
+.sidebar, .topbar, .panel, .card, .month, .wcol, .insight, .kcol, .menu, .search-results, dialog, .toast, .demo-banner, .music {
+  }
 .panel, .card, .month, .wcol, .insight { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), var(--shadow); }
 h1, h2, .brand, .stat-value, .big-clock, .cal-title { font-family: var(--display); }
 * { box-sizing: border-box; }
@@ -336,6 +336,16 @@ dialog::backdrop { background: rgba(20, 26, 38, .35); }
 .stack { display: flex; flex-direction: column; gap: 8px; }
 .pad { padding: 8px; }
 
+/* música */
+.music { position: fixed; right: 20px; top: 64px; z-index: 40; width: min(380px, calc(100vw - 40px)); max-height: calc(100vh - 84px); overflow-y: auto; background: var(--solid); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.music > header { display: flex; align-items: center; gap: 8px; }
+.music > header h2 { flex: 1; }
+.music iframe { width: 100%; border: 0; border-radius: 12px; display: block; }
+.music-form { display: flex; flex-direction: column; gap: 6px; }
+.music-saved [aria-current] { color: var(--accent); }
+.music-saved li { display: flex; align-items: center; }
+.music-btn.playing { color: var(--good); }
+
 /* avisos */
 .toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100; max-width: min(420px, calc(100vw - 40px)); }
 .toast { display: flex; align-items: center; gap: 10px; background: var(--solid); border: 1px solid var(--line); color: var(--fg); padding: 10px 14px; border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -364,7 +374,7 @@ dialog::backdrop { background: rgba(20, 26, 38, .35); }
 @media print {
   :root { --surface: #fff; --surface-2: #f3f3f3; --line: #ccc; --line-2: #bbb; --fg: #111; --fg-2: #333; --muted: #666; color-scheme: light; }
   .scene { display: none; }
-  .sidebar, .topbar, .demo-banner, .toasts, .page-actions, .no-print, .icon-btn { display: none !important; }
+  .sidebar, .topbar, .demo-banner, .toasts, .music, .page-actions, .no-print, .icon-btn { display: none !important; }
   .layout { display: block; } main { padding: 0; max-width: none; }
   .panel { break-inside: avoid; border-color: #ccc; }
   body { background: #fff; }
